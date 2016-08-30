@@ -1,7 +1,7 @@
 # Homework 0
 
 ## Logistics
-**Due Date: 8/31/2016**
+**Due Date: 9/1/2016, 11:59:59am**
 
 ## Assignment
 
