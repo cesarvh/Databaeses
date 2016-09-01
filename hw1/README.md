@@ -25,7 +25,7 @@ Keep in mind that SQLite has a number of useful utilities. For example, `.tables
 There are 7 queries that you’re going to write for this assignment. **Write them in `hw1.sql` and submit.**
 
 1. Find the number of emails that mention “Obama” in the `ExtractedBodyText` of the email.
-2. Find the average number of aliases each people in the `Persons` table has.
+2. Among people with Aliases, find the average number of Aliases each person has.
 3. Find the `MetadataDateSent` on which the most emails were sent and the number of emails that were sent on that date. Note that that many emails do not have a date -- don’t include those in your count.
 4. Find out how many distinct `id`s refer to Hillary Clinton.
 	- Hint: You might want to create a view with the ids of her aliases for future queries. See [this tutorial](http://www.tutorialspoint.com/sqlite/sqlite_views.htm). Make sure to include her actual `personId`!
