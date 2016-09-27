@@ -22,14 +22,13 @@ Keep in mind that SQLite has a number of useful utilities. For example, `.tables
 
 ## Your Assignment
 
-There are 7 queries that you’re going to write for this assignment. **Write them in `hw1.sql` and submit.**
+There are 7 queries that you’re going to write for this assignment. **Write them in `hw1.sql` and submit.** For questions 5-7, please use the `Emails.SenderPersonId` and `EmailReceivers.PersonId`. The other fields are not reliable.
 
 1. Find the number of emails that mention “Obama” in the `ExtractedBodyText` of the email.
 2. Among people with Aliases, find the average number of Aliases each person has.
-3. Find the `MetadataDateSent` on which the most emails were sent and the number of emails that were sent on that date. Note that that many emails do not have a date -- don’t include those in your count.
-4. Find out how many distinct `id`s refer to Hillary Clinton.
-	- Hint: You might want to create a view with the ids of her aliases for future queries. See [this tutorial](http://www.tutorialspoint.com/sqlite/sqlite_views.htm). Make sure to include her actual `personId`!
-5. Find the number of emails in the database sent by Hillary Clinton. Keep in mind that there are multiple aliases (from the previous question) that the email could’ve been sent from.
+3. Find the `MetadataDateSent` on which the most emails were sent and the number of emails that were sent on that date. Note that many emails do not have a date -- don’t include those in your count.
+4. Find out how many distinct `Alias` and `Person` `id`s correspond to the exact name "Hillary Clinton". **NOTE**: Ignore the earlier hint about creating a View.
+5. Find the number of emails in the database sent by Hillary Clinton. 
 6. Find the names of the 5 people who emailed Hillary Clinton the most.
 7. Find the names of the 5 people that Hillary Clinton emailed the most.
 
