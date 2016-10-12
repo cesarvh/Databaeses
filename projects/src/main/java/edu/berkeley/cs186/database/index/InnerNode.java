@@ -2,6 +2,7 @@ package edu.berkeley.cs186.database.index;
 
 import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.io.Page;
+import org.relaxng.datatype.Datatype;
 
 import java.util.List;
 
@@ -48,8 +49,30 @@ public class InnerNode extends BPlusNode {
    */
   @Override
   public LeafNode locateLeaf(DataType key, boolean findFirst) {
-    //TODO: Implement Me!!
-    return null;
+//    BPlusTree tree = this.getTree();
+//    BPlusNode root = BPlusNode.getBPlusNode(this.getTree(), tree.rootPageNum)
+
+    return (LeafNode) locateLeafHelper(this, key, findFirst);
+  }
+
+  public BPlusNode locateLeafHelper(BPlusNode currentNode, DataType key, boolean findFirst) {
+      List<BEntry> entries = currentNode.getAllValidEntries(); // Get all the valid entries of the thingy
+
+      if (currentNode.isLeaf()) {
+        return (LeafNode) currentNode.locateLeaf(key, findFirst);
+      }
+
+      for (int i = 0; i < entries.size(); i++) {
+          BEntry currentEntry = entries.get(i);
+
+          if (key.compareTo(currentEntry.getKey()) == 0) {
+              currentNode = BPlusNode.getBPlusNode(this.getTree(), currentEntry.getPageNum());
+          }
+//          else if (key.compareTo(currentEntry.getKey()) == -1) {
+//              currentNode = BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild());
+//          }
+      }
+    return locateLeafHelper(currentNode, key, findFirst);
   }
 
   /**
@@ -61,7 +84,12 @@ public class InnerNode extends BPlusNode {
    */
   @Override
   public void splitNode() {
-    //TODO: Implement me!!
-    return;
+      List<BEntry> entries = this.getAllValidEntries();
+      BEntry middleEntry = entries.get(entries.size()/2);
+      DataType middleKey = middleEntry.getKey();
+
+      System.out.println(middleKey + "<==== is the middle key. This is an inner node");
+
+
   }
 }

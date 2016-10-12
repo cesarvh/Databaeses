@@ -44,7 +44,21 @@ public class Schema {
    */
   public Record verify(List<DataType> values) throws SchemaException {
     //TODO: Implement Me!!
-    return null;
+
+    List<DataType> lst = this.getFieldTypes();
+    if  (lst.size() == values.size()) {
+        for (int i = 0; i < values.size(); i++) {
+            if (values.get(i).type() != lst.get(i).type() || values.get(i).getSize() != lst.get(i).getSize()) {
+                throw new SchemaException("Size or Type Mismatch");
+            }
+        }
+    } else {
+        throw new SchemaException("Lengths not equal");
+    }
+
+    return new Record(values);
+
+
   }
 
   /**
@@ -58,7 +72,14 @@ public class Schema {
    */
   public byte[] encode(Record record) {
     //TODO: Implement Me!!
-    return null;
+    ByteBuffer buffer = ByteBuffer.allocate(this.getEntrySize());
+    List<DataType> vals = record.getValues();
+
+    for (DataType dt : vals) {
+        buffer.put(dt.getBytes());   
+    }
+
+    return buffer.array();
   }
 
   /**
@@ -70,7 +91,35 @@ public class Schema {
    */
   public Record decode(byte[] input) {
     //TODO: Implement Me!!
-    return null;
+
+    List<DataType> encoded = new ArrayList<DataType>();
+    ByteBuffer buf = ByteBuffer.wrap(input);
+
+    for (DataType dt : this.getFieldTypes()) {
+        int len = dt.getSize();
+        byte[] intermediate = new byte[len];
+        buf.get(intermediate, 0, len);
+
+        if (len == 4) {
+            if (dt.type() == DataType.Types.FLOAT) {
+                FloatDataType data = new FloatDataType(intermediate);    
+                encoded.add(data);
+            } else {
+                IntDataType data = new IntDataType(intermediate);
+                encoded.add(data);
+            }
+
+        } else if (len == 1) {
+            BoolDataType bool = new BoolDataType(intermediate);
+            encoded.add(bool);
+        } else {
+            StringDataType str = new StringDataType(intermediate);
+            encoded.add(str);
+        }
+    }
+
+    return new Record(encoded);
+
   }
 
   public int getEntrySize() {

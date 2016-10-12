@@ -268,9 +268,9 @@ public abstract class BPlusNode {
    * @param rid RecordID to insert into the leaf
    */
   public void insertKey(DataType key, RecordID rid) {
-    LeafNode leaf = locateLeaf(key, false);
-    LeafEntry ent = new LeafEntry(key, rid);
-    leaf.insertBEntry(ent);
+      LeafNode leaf = locateLeaf(key, false);
+      LeafEntry ent = new LeafEntry(key, rid);
+      leaf.insertBEntry(ent);
   }
 
 }
