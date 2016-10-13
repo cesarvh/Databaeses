@@ -2,8 +2,10 @@ package edu.berkeley.cs186.database.index;
 
 import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.io.Page;
-import org.relaxng.datatype.Datatype;
+//import org.relaxng.datatype.Datatype;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -49,30 +51,57 @@ public class InnerNode extends BPlusNode {
    */
   @Override
   public LeafNode locateLeaf(DataType key, boolean findFirst) {
-//    BPlusTree tree = this.getTree();
-//    BPlusNode root = BPlusNode.getBPlusNode(this.getTree(), tree.rootPageNum)
+      boolean skip = false;
+      BPlusNode currentNode = null;
 
-    return (LeafNode) locateLeafHelper(this, key, findFirst);
-  }
 
-  public BPlusNode locateLeafHelper(BPlusNode currentNode, DataType key, boolean findFirst) {
-      List<BEntry> entries = currentNode.getAllValidEntries(); // Get all the valid entries of the thingy
-
-      if (currentNode.isLeaf()) {
-        return (LeafNode) currentNode.locateLeaf(key, findFirst);
+      List<BEntry> entries = this.getAllValidEntries();
+//      if (entries.size() == 0) { return null; }
+//        lastIndexOf()
+//      Collections.last
+//      if (entries.size() == 1) {
+//
+//      }
+      if (key.compareTo(entries.get(0).getKey()) == 1 && key.compareTo(entries.get(entries.size() - 1).getKey()) == 1) {
+          currentNode = BPlusNode.getBPlusNode(this.getTree(), entries.get(entries.size()-1).getPageNum());
+          skip = true;
       }
 
-      for (int i = 0; i < entries.size(); i++) {
-          BEntry currentEntry = entries.get(i);
+      for (int i = 0; i < entries.size() && !skip; i++) {
+          BEntry currEntry = entries.get(i);
+          DataType currKey = currEntry.getKey();
 
-          if (key.compareTo(currentEntry.getKey()) == 0) {
-              currentNode = BPlusNode.getBPlusNode(this.getTree(), currentEntry.getPageNum());
+          if (key.compareTo(currKey) == -1) {
+              currentNode = BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild());
+//              return currentNode
+              break;
+          } else if (key.compareTo(currKey) == 0) {
+              currentNode = BPlusNode.getBPlusNode(this.getTree(), currEntry.getPageNum());
+              break;
+          } else {
+              int j = i + 1;
+              while (j < entries.size()) {
+                  if (key.compareTo(entries.get(j).getKey()) == -1 && key.compareTo(currKey) == 1) {
+                      // this means we return this node
+                      currentNode = BPlusNode.getBPlusNode(this.getTree(), entries.get(j).getPageNum());
+                      break;
+                  }
+                  j++;
+              }
+              if (j >= entries.size() && key.compareTo(currKey) == 1) {
+                  currentNode = BPlusNode.getBPlusNode(this.getTree(), entries.get(i).getPageNum());
+                  break;
+              }
           }
-//          else if (key.compareTo(currentEntry.getKey()) == -1) {
-//              currentNode = BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild());
-//          }
+
       }
-    return locateLeafHelper(currentNode, key, findFirst);
+      if (currentNode.isLeaf()) {
+          return (LeafNode) currentNode;
+      }
+
+      return currentNode.locateLeaf(key, findFirst);
+
+
   }
 
   /**
@@ -84,12 +113,58 @@ public class InnerNode extends BPlusNode {
    */
   @Override
   public void splitNode() {
+      BPlusTree tree = this.getTree();
+
       List<BEntry> entries = this.getAllValidEntries();
-      BEntry middleEntry = entries.get(entries.size()/2);
-      DataType middleKey = middleEntry.getKey();
+      List<BEntry> rightEntries = new ArrayList<BEntry>();
+      List<BEntry> leftEntries = new ArrayList<BEntry>();
 
-      System.out.println(middleKey + "<==== is the middle key. This is an inner node");
+      InnerNode rightChild = new InnerNode(tree); // and this too
+      InnerNode newRoot;// = new InnerNode(tree);
+      BEntry middleEntry = entries.get(entries.size()/ 2);
+
+      int i = 0;
+      for (; i < entries.size() / 2; i++) {
+          leftEntries.add(entries.get(i));
+      }
+      i ++;
+
+      for (; i < entries.size(); i++) {
+          rightEntries.add(entries.get(i));
+      }
+
+      if (this.isRoot()) {
+          newRoot = new InnerNode(this.getTree());
+          newRoot.setFirstChild(this.getPageNum());
+          this.getTree().updateRoot(newRoot.getPageNum());
+      } else {
+          newRoot = (InnerNode)BPlusNode.getBPlusNode(this.getTree(),this.getParent());
+      }
 
 
+      rightChild.overwriteBNodeEntries(rightEntries);
+      rightChild.setParent(newRoot.getPageNum());
+      rightChild.setFirstChild(middleEntry.getPageNum());
+
+      this.overwriteBNodeEntries(leftEntries);
+      this.setParent(newRoot.getPageNum());
+
+      InnerEntry newInnerEntry = new InnerEntry(middleEntry.getKey(), rightChild.getPageNum());
+
+      newRoot.insertBEntry(newInnerEntry);
+
+
+      // THIS MIGHT ALL BE FUCKING WRONG
+
+      // ********** UU    UU CCCCCCCCCCCC KK       KK     TTTTTTTTTTT HH     HH  IIIIIIIII      SSSSS
+      // ********** UU    UU CCCCCCCCCCCC KK     KK           TT      HH     HH     II         SS
+      // **         UU    UU CC           KK    KK            TT      HH     HH     II       SS
+      // **         UU    UU CC           KK  KK              TT      HH     HH     II       SS
+      // ********** UU    UU CC           KKKKK               TT      HHHHHHHHH     II        SS
+      // ********** UU    UU CC           KK  KK              TT      HH     HH     II          SS
+      // **         UU    UU CC           KK   KK             TT      HH     HH     II           SS
+      // **         UU    UU CC           KK    KK            TT      HH     HH     II            SS
+      // **         UU    UU CCCCCCCCCCCC KK     KK           TT      HH     HH     II           SS
+      // **          UUUUUU  CCCCCCCCCCCC KK      KK          TT      HH     HH  IIIIIIIII  SSSSS
   }
 }
