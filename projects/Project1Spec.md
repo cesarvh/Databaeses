@@ -9,7 +9,7 @@
 This project is worth **15%** of your overall course grade. Your project grade will be out of 100 points:
 
 * 90 points for passing all of the tests provided for you. All tests are in `src/test/java/edu/berkeley/cs186/database`, so you can run them as you write code and inspect the tests to debug. Our testing provides extensive unit testing and some integration (end-to-end) testing.
-* 10 points for writing your own, valid tests. The tests **must** pass both your implementation and the staff solution to be considered valid tests.
+* 10 points for writing your own, valid tests (10 tests total, 1 point each). The tests **must** pass both your implementation and the staff solution to be considered valid tests.
 
 ### Extra Credit
 
@@ -135,7 +135,7 @@ You'll need to implement the `Schema#verify`, `Schema#encode`, and `Schema#decod
 
 Once you've finished, `Schema,` you should start by implementing `Table#addRecord` to add a new `Record` to the table.
 
-However, before adding records to a page, you'll have to do some arithmetic in `Table#setEntryCounts` to figure out exactly how many slots are on a page. Pages in our system are a fixed size `Page.pageSize`, which is currently set to 4KB. Since each record has a fixed size, you should be able to pretty easily figure out the optimal number of records that can be stored on a page. Make sure you account for the slot header (one bit (not byte) per record!). 
+However, before adding records to a page, you'll have to do some arithmetic in `Table#setEntryCounts` to figure out exactly how many slots are on a page. Pages in our system are a fixed size `Page.pageSize`, which is currently set to 4KiB (4096 bytes). Since each record has a fixed size, you should be able to pretty easily figure out the optimal number of records that can be stored on a page. Make sure you account for the slot header (one bit (not byte) per record!). 
 
 We then suggest you implement `Table#checkRecordIDValidity` as it will be useful for the rest of the `Table` class. The last part of this chunk is implementing `Table#getRecord`. This should allow you to pass some of the basic `Table` tests that we've provided.
 
