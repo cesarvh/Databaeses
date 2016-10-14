@@ -67,6 +67,7 @@ public class TestSchema {
   }
 
   @Test
+  @Category(StudentTest.class)
   public void testEncodeAndDecode() throws SchemaException {
     Schema schema = TestUtils.createSchemaWithAllTypes();
     Record input = TestUtils.createRecordWithAllTypes();
