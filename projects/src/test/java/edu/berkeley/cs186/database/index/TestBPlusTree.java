@@ -132,12 +132,18 @@ public class TestBPlusTree {
     //Insert full leaf of records + 1
     for (int i = 0; i < intLeafPageSize + 1; i++) {
       bp.insertKey(new IntDataType(i), new RecordID(i,0));
+      if (i == 398) {
+        System.out.println("hi");
+      }
+//      System.out.println(i + " and rootPageNum == " + bp.rootPageNum);
+
     }
 
     Iterator<RecordID> rids = bp.sortedScan();
     assertTrue(rids.hasNext());
     int counter = 0;
     while (rids.hasNext()) {
+
       RecordID rid = rids.next();
       assertEquals(counter, rid.getPageNum());
       counter++;
@@ -198,6 +204,11 @@ public class TestBPlusTree {
     Random rand = new Random(0); //const seed 
     for (int i = 0; i < 10*intLeafPageSize; i++) {
       int val = rand.nextInt();
+
+      if (i == 788) {
+        System.out.println("iteration number  " + i);
+      }
+
       bp.insertKey(new IntDataType(val), new RecordID(val, 0));
     }
     Iterator<RecordID> rids = bp.sortedScan();
@@ -206,6 +217,8 @@ public class TestBPlusTree {
     for (int i = 0; i < 10*intLeafPageSize - 1; i++) {
       assertTrue(rids.hasNext());
       RecordID rid = rids.next();
+//      System.out.println("Iteration " + i);
+//      System.out.println("At iteration " + i + " We have: " +  last +" not less than " +  rid.getPageNum());
       assertTrue(last + " not less than " + rid.getPageNum(), last <= rid.getPageNum());
       last = rid.getPageNum();
     }
@@ -217,6 +230,9 @@ public class TestBPlusTree {
 
     //Insert 4 full leafs of records in sweeping fashion
     for (int i = 0; i < 8*intLeafPageSize; i++) {
+//      if (i == 666) {
+//        int j = 0;
+//      }
       bp.insertKey(new IntDataType(i % 4), new RecordID(i % 4, i));
     }
     Iterator<RecordID> rids = bp.lookupKey(new IntDataType(0));
@@ -265,6 +281,10 @@ public class TestBPlusTree {
 
     //Insert 10 full leafs of records in sweeping fashion
     for (int i = 0; i < 10*intLeafPageSize; i++) {
+      System.out.println("Iteration number " + i);
+      if (i == 736) {
+        System.out.println("hi");
+      }
       bp.insertKey(new IntDataType(i % 5), new RecordID(i % 5, i));
     }
 
@@ -295,6 +315,10 @@ public class TestBPlusTree {
         for (int j = 0; j < 2*intLeafPageSize; j++) {
           assertTrue(rids.hasNext());
           RecordID rid = rids.next();
+          if (j == 780) {
+            System.out.println(j);
+          }
+
           assertEquals(i, rid.getPageNum());
         }
       }
@@ -340,12 +364,13 @@ public class TestBPlusTree {
       assertFalse(rids.hasNext());
     }
   }
+
   @Test
   public void testBPlusTreeRandomInsertSortedScanInnerSplit() {
     //insert enough for InnerNode Split; numEntries + firstChild
     Random rand = new Random(0); //const seed 
     int innerNodeSplit = intInnPageSize;
-    
+
     for (int i = 0; i < innerNodeSplit*intLeafPageSize; i++) {
       int val = rand.nextInt();
       bp.insertKey(new IntDataType(val), new RecordID(val, 0));

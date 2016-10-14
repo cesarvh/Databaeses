@@ -182,10 +182,17 @@ public class InnerNode extends BPlusNode {
 
       newRoot.insertBEntry(newInnerEntry);
 
+      List<BEntry> temp = rightChild.getAllValidEntries();
+      for (int j = 0; i < temp.size(); j++) {
+          BPlusNode currentNode = BPlusNode.getBPlusNode(this.getTree(), temp.get(j).getPageNum());
+          if (!currentNode.isLeaf()) {
+              currentNode.setParent(newRoot.getPageNum());
+          }
 
+      }
 
       // ********** UU    UU CCCCCCCCCCCC KK       KK     TTTTTTTTTTT HH     HH  IIIIIIIII      SSSSS
-      // ********** UU    UU CCCCCCCCCCCC KK     KK           TT      HH     HH     II         SS
+      // ********** UU    UU CCCCCCCCCCC  KK     KK           TT      HH     HH     II         SS
       // **         UU    UU CC           KK    KK            TT      HH     HH     II       SS
       // **         UU    UU CC           KK  KK              TT      HH     HH     II       SS
       // ********** UU    UU CC           KKKKK               TT      HHHHHHHHH     II        SS

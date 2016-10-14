@@ -44,9 +44,33 @@ public class LeafNode extends BPlusNode {
    */
   @Override
   public LeafNode locateLeaf(DataType key, boolean findFirst) {
-      LeafEntry currentb_entry;
-      LeafNode returnnode = this;
-        return this;
+
+      if (findFirst) {
+          // look back
+          if (this.getPrevLeaf() != -1 ){
+              LeafNode previousLeaf = (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getPrevLeaf());
+              List<BEntry> prevEntries = previousLeaf.getAllValidEntries();
+              if (key.compareTo(prevEntries.get(prevEntries.size() - 1).getKey()) == 0) {
+                  return (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getPrevLeaf());
+              }
+              return this;
+          }
+          return this;
+
+      } else{
+          if (this.getNextLeaf() != -1) {
+              LeafNode nextLeaf = (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getNextLeaf());
+              List<BEntry> nextEntries = nextLeaf.getAllValidEntries();
+              if (key.compareTo(nextEntries.get(0).getKey()) == 0) {
+                  return (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getNextLeaf());
+              }
+              return this;
+          }
+          return this;
+
+      }
+
+
   }
 
 
@@ -81,26 +105,34 @@ public class LeafNode extends BPlusNode {
       Collections.sort(rightEntries);
       Collections.sort(leftEntries);
 
+      this.overwriteBNodeEntries(leftEntries);
+      rightLeaf.overwriteBNodeEntries(rightEntries);
+
       if (this.isRoot()) {
           newRoot = new InnerNode(this.getTree());
-          this.getTree().updateRoot(newRoot.getPageNum());
           newRoot.setFirstChild(this.getPageNum());
+          this.getTree().updateRoot(newRoot.getPageNum());
 
       } else {
            newRoot = (InnerNode) BPlusNode.getBPlusNode(this.getTree(), this.getParent());
       }
 
       this.setParent(newRoot.getPageNum());
-      this.overwriteBNodeEntries(leftEntries);
+
 
       rightLeaf.setNextLeaf(this.getNextLeaf());
       rightLeaf.setPrevLeaf(this.getPageNum());
       rightLeaf.setParent(newRoot.getPageNum());
-      rightLeaf.overwriteBNodeEntries(rightEntries);
+
+
+      if (this.getNextLeaf() > 0) {
+          LeafNode tempnode = (LeafNode)BPlusNode.getBPlusNode(this.getTree(),this.getNextLeaf());
+          tempnode.setPrevLeaf(rightLeaf.getPageNum());
+      }
 
       this.setNextLeaf(rightLeaf.getPageNum());
 
-      InnerEntry newIEntry = new InnerEntry(entries.get(this.numEntries / 2).getKey() , rightLeaf.getPageNum());
+      InnerEntry newIEntry = new InnerEntry(entries.get(entries.size() / 2).getKey() , rightLeaf.getPageNum());
       newRoot.insertBEntry(newIEntry);
 
 
