@@ -593,15 +593,15 @@ public class Table implements Iterable<Record>, Closeable {
 
     if (this.hasNext()) {
       Record record = null;
-      if (this.cursor > Table.this.numEntriesPerPage - 1) {
-        if (this.pIter.hasNext()) {
-//          this.currentPage = this.pIter.next();
-          this.pageNum++;
-          this.cursor = 0;
-        } else {
-          return null;
-        }
-      }
+//      if (this.cursor > Table.this.numEntriesPerPage - 1) {
+//        if (this.pIter.hasNext()) {
+////          this.currentPage = this.pIter.next();
+//          this.pageNum++;
+//          this.cursor = 0;
+//        } else {
+//          return null;
+//        }
+//      }
       while (record == null) {
         try {
           if (this.cursor > Table.this.numEntriesPerPage - 1) {

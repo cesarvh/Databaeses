@@ -51,132 +51,87 @@ public class InnerNode extends BPlusNode {
    */
   @Override
   public LeafNode locateLeaf(DataType key, boolean findFirst) {
-      boolean skip = false;
-      boolean breakout = false;
-      BPlusNode currentNode = null;
-
       List<BEntry> entries = this.getAllValidEntries();
-      int firstCompare = key.compareTo(entries.get(0).getKey());
-      int lastCompare = key.compareTo(entries.get(entries.size() -1).getKey());
-//       if (entries.size() == 2) {
-//           int o = 10;
-//       }
-      if (key.compareTo(entries.get(0).getKey()) == 1 && key.compareTo(entries.get(entries.size() - 1).getKey()) == 1) {
-          currentNode = BPlusNode.getBPlusNode(this.getTree(), entries.get(entries.size()-1).getPageNum());
+      BEntry ret;
+      int first =key.compareTo(entries.get(0).getKey());
+      int last = key.compareTo(entries.get(entries.size() - 1).getKey());
+
+
+      if (first == -1) {
+          return BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild()).locateLeaf(key, findFirst);
       }
-      else if (key.compareTo(entries.get(0).getKey()) == -1 && key.compareTo(entries.get(entries.size() - 1).getKey()) == -1) {
-          currentNode = BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild());
-      }
-      else if (key.compareTo(entries.get(0).getKey()) == 0 && key.compareTo(entries.get(entries.size() - 1).getKey()) == 0) {
-          if (!findFirst){
-              currentNode = BPlusNode.getBPlusNode(this.getTree(),entries.get(entries.size() -1).getPageNum());
+
+      if (findFirst) {
+          if ((first == last) || (first == 0 && last == -1)) {
+              return BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild()).locateLeaf(key, findFirst);
           }
-          currentNode = BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild());
-      }
-//      else if (key.compareTo(entries.get(0).getKey()) == 1 && key.compareTo(entries.get(entries.size() - 1).getKey()) == 0) {
-//          if (!findFirst) {
-//              currentNode = BPlusNode.getBPlusNode(this.getTree(),entries.get(entries.size() -1).getPageNum());
-//          }
-//          currentNode = BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild());
-          //skip = true;
-//      }
-//      else if (firstCompare == 0  && lastCompare == -1) {
-//          if (findFirst) {
-//              currentNode = BPlusNode.getBPlusNode(this.getTree(), entries.get(0).getPageNum());
-//          } else {
-//              for (int last = entries.size() -1; last > - 1; last--) {
-//                  BEntry currentEntry = entries.get(last);
-//                  DataType currentKey = currentEntry.getKey();
-//                  if (key.compareTo(currentKey) == 0) {
-//                      currentNode = BPlusNode.getBPlusNode(this.getTree(), currentEntry.getPageNum());
-//                      break;
-//                  }
-//              }
-//
-//          }
-//      } else if (firstCompare == 1 && lastCompare == -1 ) {
-//            if (findFirst) {
-//                for (int i = 0; i < entries.size(); i++) {
-//                    BEntry currentEntry = entries.get(i);
-//                    DataType currentKey = currentEntry.getKey();
-//
-//                    if (key.compareTo(currentKey) == 0) {
-//                        currentNode = BPlusNode.get
-//                    }
-//                }
-//            }
-//            if (!findFirst) {
-//
-//            }
-//      }
 
-//      } else if () {
-//
-//      }
-
-//
-
-      else if ((firstCompare == 0 || firstCompare == -1) && (firstCompare == 0 || key.compareTo(entries.get(entries.size() - 1).getKey()) == 1)) {
-          // this means the wanted page is somewhere inbetween
-          if (findFirst) {
-              for (int f = 0; f < entries.size(); f++) {
-                  BEntry currentEntry = entries.get(f);
-                  DataType currentKey = currentEntry.getKey();
-                  if (key.compareTo(currentKey) == 0) {
-                      currentNode = BPlusNode.getBPlusNode(this.getTree(), currentEntry.getPageNum());
-                        break;
-                  }
-              }
-              // find the first one
-
-          } else if (!findFirst) {
-              // find the last one
-              for (int l = entries.size() -1; l > -1; l--) {
-                  BEntry prevEntry = entries.get(l);
-                  DataType prevKey = prevEntry.getKey();
-                  if (key.compareTo(prevKey) == 0) {
-                      currentNode = BPlusNode.getBPlusNode(this.getTree(), prevEntry.getPageNum());
-                      break;
-                  }
-//     if (entries.get(l))
-              }
-
-          }
-      }
-
-      if (currentNode == null) {
-          // something went wrong during asssignment, so we must find the spot where it did!
-//          for (int i = 0)
-          int i, j;
-          for (i = 0, j = 1;  j < entries.size(); j++, i++) {
-              BEntry pointer = entries.get(i);
-              BEntry lookAhead = entries.get(j);
-              DataType pointerKey = pointer.getKey();
-              DataType lookAheadKey = lookAhead.getKey();
-
-              if (key.compareTo(pointerKey) == 1 && key.compareTo(lookAheadKey) == -1) {
-                  currentNode = BPlusNode.getBPlusNode(this.getTree(), pointer.getPageNum());
-                  break;
-              }
-              else if (key.compareTo(pointerKey) == 1 && key.compareTo(lookAheadKey) == 0) {
-                  currentNode = BPlusNode.getBPlusNode(this.getTree(), lookAhead.getPageNum());
-                  break;
-              }
-
+          else if ((first == 1 && last == 0) || (first == 1 && last == -1)) {
+              ret = findFirstOrLast(entries, key, true);
+              return BPlusNode.getBPlusNode(this.getTree(), ret.getPageNum()).locateLeaf(key, findFirst);
           }
 
 
+      } else {
+          if ((first == last) || (first == 1 && last == 0)) { // order doesnt matter
+              return BPlusNode.getBPlusNode(this.getTree(), entries.get(entries.size() - 1).getPageNum()).locateLeaf(key, findFirst);
+          }
+          else if ((first == 1 && last == -1) || (first  == 0 && last == -1)) {
+              ret = findFirstOrLast(entries, key, false);
+              return BPlusNode.getBPlusNode(this.getTree(), ret.getPageNum()).locateLeaf(key, findFirst);
+          }
       }
-
-
-      if (currentNode.isLeaf()) {
-          return (LeafNode) currentNode;
-      }
-
-      return currentNode.locateLeaf(key, findFirst);
+      return null;
 
 
   }
+
+
+
+    public BEntry findFirstOrLast(List<BEntry> entries, DataType key, boolean findFirst) {
+        BEntry currentEntry;
+        DataType currentKey;
+
+        List<DataType> keys = new ArrayList<DataType>();
+
+        if (findFirst) {
+            for (int i = 0; i < entries.size(); i++) {
+                currentEntry = entries.get(i);
+                currentKey = currentEntry.getKey();
+                if (key.compareTo(currentKey) == 0) {
+                    return currentEntry;
+                }
+            }
+        } else {
+            for (int i = entries.size() - 1; i > -1; i--) {
+                currentEntry = entries.get(i);
+                currentKey = currentEntry.getKey();
+                if (key.compareTo(currentKey) == 0) {
+                    return currentEntry;
+                }
+            }
+        }
+
+        // WHAT IF we don't find the key inside?
+        for (int i = 0; i < entries.size(); i++) {
+            keys.add(entries.get(i).getKey());
+        }
+
+        if (!keys.contains(key)) {
+            for (int i = 0, j = 1; j < entries.size(); i++, j++) {
+                BEntry pointerEntry = entries.get(i);
+                BEntry lookaheadEntry = entries.get(j);
+                DataType pointerKey = pointerEntry.getKey();
+                DataType lookaheadKey = lookaheadEntry.getKey();
+
+                if (key.compareTo(pointerKey) == 1 && key.compareTo(lookaheadKey) == -1) {
+                    return pointerEntry;
+                }
+
+            }
+        }
+        return null;
+    }
 
   /**
    * Splits this node and pushes up the middle key. Note that we split this node
@@ -228,14 +183,12 @@ public class InnerNode extends BPlusNode {
       newRoot.insertBEntry(newInnerEntry);
 
 
-      // THIS MIGHT ALL BE FUCKING WRONG
 
       // ********** UU    UU CCCCCCCCCCCC KK       KK     TTTTTTTTTTT HH     HH  IIIIIIIII      SSSSS
       // ********** UU    UU CCCCCCCCCCCC KK     KK           TT      HH     HH     II         SS
       // **         UU    UU CC           KK    KK            TT      HH     HH     II       SS
       // **         UU    UU CC           KK  KK              TT      HH     HH     II       SS
       // ********** UU    UU CC           KKKKK               TT      HHHHHHHHH     II        SS
-      // ********** UU    UU CC           KK  KK              TT      HH     HH     II          SS
       // **         UU    UU CC           KK   KK             TT      HH     HH     II           SS
       // **         UU    UU CC           KK    KK            TT      HH     HH     II            SS
       // **         UU    UU CCCCCCCCCCCC KK     KK           TT      HH     HH     II           SS
