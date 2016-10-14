@@ -463,6 +463,10 @@ public class Table implements Iterable<Record>, Closeable {
     }
   }
 
+  public long numRecords() {
+    return this.numRecords;
+  }
+
   /**
    * Utility method to read the header page of the table.
    */
