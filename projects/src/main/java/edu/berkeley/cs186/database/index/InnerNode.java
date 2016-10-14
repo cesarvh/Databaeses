@@ -51,6 +51,7 @@ public class InnerNode extends BPlusNode {
    */
   @Override
   public LeafNode locateLeaf(DataType key, boolean findFirst) {
+
       List<BEntry> entries = this.getAllValidEntries();
       BEntry ret;
       int first =key.compareTo(entries.get(0).getKey());
@@ -159,7 +160,10 @@ public class InnerNode extends BPlusNode {
       i ++;
 
       for (; i < entries.size(); i++) {
+          BPlusNode currentNode = BPlusNode.getBPlusNode(this.getTree(), entries.get(i).getPageNum());
+          currentNode.setParent(rightChild.getPageNum());
           rightEntries.add(entries.get(i));
+
       }
 
       if (this.isRoot()) {
@@ -180,16 +184,16 @@ public class InnerNode extends BPlusNode {
 
       InnerEntry newInnerEntry = new InnerEntry(middleEntry.getKey(), rightChild.getPageNum());
 
-      newRoot.insertBEntry(newInnerEntry);
+//      newRoot.insertBEntry(newInnerEntry);
 
       List<BEntry> temp = rightChild.getAllValidEntries();
       for (int j = 0; i < temp.size(); j++) {
           BPlusNode currentNode = BPlusNode.getBPlusNode(this.getTree(), temp.get(j).getPageNum());
-          if (!currentNode.isLeaf()) {
-              currentNode.setParent(newRoot.getPageNum());
-          }
+          currentNode.setParent(rightChild.getPageNum());
 
       }
+      newRoot.insertBEntry(newInnerEntry);
+
 
       // ********** UU    UU CCCCCCCCCCCC KK       KK     TTTTTTTTTTT HH     HH  IIIIIIIII      SSSSS
       // ********** UU    UU CCCCCCCCCCC  KK     KK           TT      HH     HH     II         SS

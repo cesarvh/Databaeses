@@ -50,8 +50,8 @@ public class LeafNode extends BPlusNode {
           if (this.getPrevLeaf() != -1 ){
               LeafNode previousLeaf = (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getPrevLeaf());
               List<BEntry> prevEntries = previousLeaf.getAllValidEntries();
-              if (key.compareTo(prevEntries.get(prevEntries.size() - 1).getKey()) == 0) {
-                  return (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getPrevLeaf());
+              if (key.compareTo(prevEntries.get(prevEntries.size() - 1).getKey()) <= 0) {
+                  return  BPlusNode.getBPlusNode(this.getTree(), this.getPrevLeaf()).locateLeaf(key, findFirst);
               }
               return this;
           }
@@ -61,8 +61,8 @@ public class LeafNode extends BPlusNode {
           if (this.getNextLeaf() != -1) {
               LeafNode nextLeaf = (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getNextLeaf());
               List<BEntry> nextEntries = nextLeaf.getAllValidEntries();
-              if (key.compareTo(nextEntries.get(0).getKey()) == 0) {
-                  return (LeafNode) BPlusNode.getBPlusNode(this.getTree(), this.getNextLeaf());
+              if (key.compareTo(nextEntries.get(0).getKey()) >= 0) {
+                  return  BPlusNode.getBPlusNode(this.getTree(), this.getNextLeaf()).locateLeaf(key,findFirst);
               }
               return this;
           }
@@ -102,8 +102,8 @@ public class LeafNode extends BPlusNode {
           rightEntries.add(entries.get(i));
       }
 
-      Collections.sort(rightEntries);
-      Collections.sort(leftEntries);
+//      Collections.sort(rightEntries);
+//      Collections.sort(leftEntries);
 
       this.overwriteBNodeEntries(leftEntries);
       rightLeaf.overwriteBNodeEntries(rightEntries);

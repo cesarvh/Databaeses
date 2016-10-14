@@ -1,11 +1,12 @@
 package edu.berkeley.cs186.database.table;
 
+import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.TestUtils;
 import edu.berkeley.cs186.database.StudentTest;
 import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.datatypes.IntDataType;
 import edu.berkeley.cs186.database.datatypes.StringDataType;
-
+import edu.berkeley.cs186.database.datatypes.DataTypeException;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -63,5 +64,32 @@ public class TestSchema {
 
     input.getValues().set(2, new StringDataType("abcdef", 6));
     schema.verify(input.getValues());
+  }
+
+  @Test
+  public void testEncodeAndDecode() throws SchemaException {
+    Schema schema = TestUtils.createSchemaWithAllTypes();
+    Record input = TestUtils.createRecordWithAllTypes();
+    int i = 1;
+    input.getValues().get(1).setInt(i);
+    input.getValues().get(2).setString("cesar", 5);
+
+    byte[] arr = schema.encode(input);
+    assertEquals(schema.decode(arr), input);
+
+  }
+
+  @Test(expected = DataTypeException.class)
+  @Category(StudentTest.class)
+  public void testInvalidSetters() throws DataTypeException {
+    Schema schema = TestUtils.createSchemaWithAllTypes();
+    Record input = TestUtils.createRecordWithAllTypes();
+    int i = 1;
+    input.getValues().get(0).setInt(i);
+    input.getValues().get(1).setString("cesar", 5);
+
+//    byte[] arr = schema.encode(input);
+//    assertEquals(schema.decode(arr), input);
+
   }
 }
