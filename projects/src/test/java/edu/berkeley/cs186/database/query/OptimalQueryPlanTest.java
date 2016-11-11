@@ -5,7 +5,6 @@ import org.junit.Test;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.experimental.categories.Category;
-import org.junit.rules.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,18 +30,15 @@ import edu.berkeley.cs186.database.table.stats.StringHistogram;
 
 import static org.junit.Assert.*;
 
-public class QueryPlanTest {
+public class OptimalQueryPlanTest {
   private Database database;
   private Random random = new Random();
   private String alphabet = StringHistogram.alphaNumeric;
   private String defaulTableName = "testAllTypes";
-  private int defaultNumRecords = 100;
+  private int defaultNumRecords = 1000;
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
-  
-  @Rule
-  public Timeout globalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
 
   @Before
   public void setUp() throws DatabaseException, IOException {
@@ -53,7 +49,7 @@ public class QueryPlanTest {
     Database.Transaction transaction = this.database.beginTransaction();
 
     // by default, create 100 records
-    for (int i = 0; i < defaultNumRecords; i++) {
+    for (int i = 0; i < this.defaultNumRecords; i++) {
       // generate a random record
       IntDataType intValue = new IntDataType(i);
       FloatDataType floatValue = new FloatDataType(this.random.nextFloat());
@@ -77,8 +73,17 @@ public class QueryPlanTest {
     transaction.end();
   }
 
+  /**
+   * Test sample, do not modify.
+   */
   @Test
-  public void testSimpleSelect() throws DatabaseException, QueryPlanException {
+  @Category(StudentTestP2.class)
+  public void testSample() {
+    assertEquals(true, true); // Do not actually write a test like this!
+  }
+
+  @Test(timeout=1000)
+  public void testSimpleSelectIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
@@ -87,7 +92,7 @@ public class QueryPlanTest {
     columnNames.add("string");
 
     queryPlan.select(columnNames);
-    Iterator<Record> outputIterator = queryPlan.execute();
+    Iterator<Record> outputIterator = queryPlan.executeOptimal();
 
     int count = 0;
     while (outputIterator.hasNext()) {
@@ -100,17 +105,24 @@ public class QueryPlanTest {
 
     assertEquals(this.defaultNumRecords, count);
 
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: SELECT\n" +
+                  "columns: [int, string]\n" +
+                  "\ttype: SEQSCAN\n" +
+                  "\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
+
     transaction.end();
   }
 
-  @Test
-  public void testSimpleWhere() throws DatabaseException, QueryPlanException {
+  @Test(timeout=1000)
+  public void testSimpleWhereIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
     queryPlan.where("int", QueryPlan.PredicateOperator.GREATER_THAN_EQUALS, new IntDataType(0));
 
-    Iterator<Record> outputIterator = queryPlan.execute();
+    Iterator<Record> outputIterator = queryPlan.executeOptimal();
 
     while (outputIterator.hasNext()) {
       Record record = outputIterator.next();
@@ -118,17 +130,26 @@ public class QueryPlanTest {
       assertTrue(record.getValues().get(1).getInt() >= 0);
     }
 
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: WHERE\n" +
+                  "column: testAllTypes.int\n" +
+                  "predicate: GREATER_THAN_EQUALS\n" +
+                  "value: 0\n" +
+                  "\ttype: SEQSCAN\n" +
+                  "\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
+
     transaction.end();
   }
 
-  @Test
-  public void testSimpleGroupBy() throws DatabaseException, QueryPlanException {
+  @Test(timeout=60000)
+  public void testSimpleGroupByIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
     MarkerRecord markerRecord = MarkerRecord.getMarker();
 
     queryPlan.groupBy("int");
-    Iterator<Record> outputIterator = queryPlan.execute();
+    Iterator<Record> outputIterator = queryPlan.executeOptimal();
 
     boolean first = true;
     int prevValue = 0;
@@ -145,37 +166,18 @@ public class QueryPlanTest {
       }
     }
 
-    transaction.end();
-  }
-
-  @Test
-  public void testSimpleJoin() throws DatabaseException, QueryPlanException {
-    Database.Transaction transaction = this.database.beginTransaction();
-    QueryPlan queryPlan = transaction.query(this.defaulTableName);
-
-    queryPlan.join(this.defaulTableName, "int", "int");
-    Iterator<Record> outputIterator = queryPlan.execute();
-
-    int count = 0;
-
-    while (outputIterator.hasNext()) {
-      count++;
-
-      Record record = outputIterator.next();
-      List<DataType> recordValues = record.getValues();
-      assertEquals(recordValues.get(0), recordValues.get(4));
-      assertEquals(recordValues.get(1), recordValues.get(5));
-      assertEquals(recordValues.get(2), recordValues.get(6));
-      assertEquals(recordValues.get(3), recordValues.get(7));
-    }
-
-    assertTrue(count >= 100);
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: GROUPBY\n" +
+                  "column: testAllTypes.int\n" +
+                  "\ttype: SEQSCAN\n" +
+                  "\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
 
     transaction.end();
   }
 
-  @Test
-  public void testSelectWhere() throws DatabaseException, QueryPlanException {
+  @Test(timeout=1000)
+  public void testSelectWhereIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
@@ -186,7 +188,7 @@ public class QueryPlanTest {
     columnNames.add("int");
     queryPlan.select(columnNames);
 
-    Iterator<Record> recordIterator = queryPlan.execute();
+    Iterator<Record> recordIterator = queryPlan.executeOptimal();
 
     while (recordIterator.hasNext()) {
       Record record = recordIterator.next();
@@ -199,104 +201,22 @@ public class QueryPlanTest {
       assertTrue(values.get(1).getInt() >= 0);
     }
 
-    transaction.end();
-  }
-
-  @Test
-  public void testSelectJoin() throws DatabaseException, QueryPlanException {
-    Database.Transaction transaction = this.database.beginTransaction();
-    transaction.queryAs(this.defaulTableName, "t1");
-    transaction.queryAs(this.defaulTableName, "t2");
-
-    QueryPlan queryPlan = transaction.query("t1");
-
-    queryPlan.join("t2", "t1.string", "t2.string");
-    List<String> columnNames = new ArrayList<String>();
-    columnNames.add("t1.int");
-    columnNames.add("t2.string");
-    queryPlan.select(columnNames);
-
-    Iterator<Record> recordIterator = queryPlan.execute();
-
-    int count = 0;
-    while (recordIterator.hasNext()) {
-      Record record = recordIterator.next();
-      List<DataType> values = record.getValues();
-
-      assertEquals(2, values.size());
-
-      assertTrue(values.get(0) instanceof IntDataType);
-      assertTrue(values.get(1) instanceof StringDataType);
-
-      count++;
-    }
-
-    assertTrue(count > 10);
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: SELECT\n" +
+                  "columns: [bool, int]\n" +
+                  "\ttype: WHERE\n" +
+                  "\tcolumn: testAllTypes.int\n" +
+                  "\tpredicate: GREATER_THAN_EQUALS\n" +
+                  "\tvalue: 0\n" +
+                  "\t\ttype: SEQSCAN\n" +
+                  "\t\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
 
     transaction.end();
   }
 
-  @Test
-  public void testWhereJoin() throws DatabaseException, QueryPlanException {
-    Database.Transaction transaction = this.database.beginTransaction();
-    transaction.queryAs(this.defaulTableName, "t1");
-
-    QueryPlan queryPlan = transaction.query(this.defaulTableName);
-
-    queryPlan.join("t1", "string", "string");
-    queryPlan.where("t1.bool", QueryPlan.PredicateOperator.NOT_EQUALS, new BoolDataType(false));
-
-    Iterator<Record> recordIterator = queryPlan.execute();
-
-    while (recordIterator.hasNext()) {
-      Record record = recordIterator.next();
-      List<DataType> values = record.getValues();
-
-      assertEquals(values.get(0), values.get(4));
-      assertEquals(values.get(1), values.get(5));
-      assertEquals(values.get(2), values.get(6));
-      assertEquals(values.get(3), values.get(7));
-
-      assertTrue(values.get(0).getBool());
-    }
-
-    transaction.end();
-  }
-
-  @Test
-  public void testSelectWhereJoin() throws DatabaseException, QueryPlanException {
-    Database.Transaction transaction = this.database.beginTransaction();
-    transaction.queryAs(this.defaulTableName, "t1");
-
-    QueryPlan queryPlan = transaction.query(this.defaulTableName);
-
-    queryPlan.join("t1", "string", "string");
-    queryPlan.where("t1.bool", QueryPlan.PredicateOperator.NOT_EQUALS, new BoolDataType(false));
-
-    List<String> columnNames = new ArrayList<String>();
-    columnNames.add("t1.bool");
-    columnNames.add(this.defaulTableName + ".int");
-    queryPlan.select(columnNames);
-
-    Iterator<Record> recordIterator = queryPlan.execute();
-
-    while (recordIterator.hasNext()) {
-      Record record = recordIterator.next();
-      List<DataType> values = record.getValues();
-
-      assertEquals(2, values.size());
-
-      assertTrue(values.get(0) instanceof BoolDataType);
-      assertTrue(values.get(1) instanceof IntDataType);
-
-      assertTrue(values.get(0).getBool());
-    }
-
-    transaction.end();
-  }
-
-  @Test
-  public void testSelectGroupBy() throws DatabaseException, QueryPlanException {
+  @Test(timeout=60000)
+  public void testSelectGroupByIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
@@ -305,7 +225,7 @@ public class QueryPlanTest {
     columnNames.add("int");
     queryPlan.select(columnNames);
 
-    Iterator<Record> recordIterator = queryPlan.execute();
+    Iterator<Record> recordIterator = queryPlan.executeOptimal();
 
     boolean first = true;
     int prevValue = 0;
@@ -326,18 +246,27 @@ public class QueryPlanTest {
       }
     }
 
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: SELECT\n" +
+                  "columns: [int]\n" +
+                  "\ttype: GROUPBY\n" +
+                  "\tcolumn: testAllTypes.int\n" +
+                  "\t\ttype: SEQSCAN\n" +
+                  "\t\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
+
     transaction.end();
   }
 
-  @Test
-  public void testWhereGroupBy() throws DatabaseException, QueryPlanException {
+  @Test(timeout=60000)
+  public void testWhereGroupByIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
     queryPlan.groupBy("int");
     queryPlan.where("int", QueryPlan.PredicateOperator.GREATER_THAN, new IntDataType(10));
 
-    Iterator<Record> recordIterator = queryPlan.execute();
+    Iterator<Record> recordIterator = queryPlan.executeOptimal();
 
     boolean first = true;
     int prevValue = 0;
@@ -358,11 +287,22 @@ public class QueryPlanTest {
       }
     }
 
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: GROUPBY\n" +
+                  "column: testAllTypes.int\n" +
+                  "\ttype: WHERE\n" +
+                  "\tcolumn: testAllTypes.int\n" +
+                  "\tpredicate: GREATER_THAN\n" +
+                  "\tvalue: 10\n" +
+                  "\t\ttype: SEQSCAN\n" +
+                  "\t\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
+
     transaction.end();
   }
 
-  @Test
-  public void testSelectWhereGroupBy() throws DatabaseException, QueryPlanException {
+  @Test(timeout=60000)
+  public void testSelectWhereGroupByIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
@@ -373,7 +313,7 @@ public class QueryPlanTest {
     columnNames.add("int");
     queryPlan.select(columnNames);
 
-    Iterator<Record> recordIterator = queryPlan.execute();
+    Iterator<Record> recordIterator = queryPlan.executeOptimal();
 
     boolean first = true;
     int prevValue = 0;
@@ -396,59 +336,31 @@ public class QueryPlanTest {
       }
     }
 
-    transaction.end();
-  }
-
-  @Test
-  public void testSelectWhereGroupByJoin() throws DatabaseException, QueryPlanException {
-    Database.Transaction transaction = this.database.beginTransaction();
-    transaction.queryAs(this.defaulTableName, "t1");
-
-    QueryPlan queryPlan = transaction.query(this.defaulTableName);
-
-    queryPlan.join("t1", "int", "int");
-    queryPlan.groupBy("t1.int");
-    queryPlan.where(this.defaulTableName + ".int", QueryPlan.PredicateOperator.GREATER_THAN, new IntDataType(10));
-    List<String> columnNames = new ArrayList<String>();
-    columnNames.add("t1.float");
-    columnNames.add(this.defaulTableName + ".int");
-    queryPlan.select(columnNames);
-
-    Iterator<Record> recordIterator = queryPlan.execute();
-
-    boolean first = true;
-    int prevValue = 0;
-    MarkerRecord markerRecord = MarkerRecord.getMarker();
-
-    while (recordIterator.hasNext()) {
-      Record record = recordIterator.next();
-
-      if (first) {
-        prevValue = record.getValues().get(1).getInt();
-        assertTrue(record.getValues().get(1).getInt() > 10);
-        assertEquals(2, record.getValues().size());
-        first = false;
-      } else if (record == markerRecord) {
-        first = true;
-      } else {
-        assertEquals(prevValue, record.getValues().get(1).getInt());
-        assertTrue(record.getValues().get(1).getInt() > 10);
-        assertEquals(2, record.getValues().size());
-      }
-    }
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: SELECT\n" +
+                  "columns: [float, int]\n" +
+                  "\ttype: GROUPBY\n" +
+                  "\tcolumn: testAllTypes.int\n" +
+                  "\t\ttype: WHERE\n" +
+                  "\t\tcolumn: testAllTypes.int\n" +
+                  "\t\tpredicate: GREATER_THAN\n" +
+                  "\t\tvalue: 10\n" +
+                  "\t\t\ttype: SEQSCAN\n" +
+                  "\t\t\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
 
     transaction.end();
   }
 
-  @Test
-  public void testEmptyWhereResult() throws DatabaseException, QueryPlanException {
+  @Test(timeout=1000)
+  public void testEmptyWhereResultIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
     queryPlan.where("int", QueryPlan.PredicateOperator.GREATER_THAN_EQUALS,
         new IntDataType(Integer.MAX_VALUE));
 
-    Iterator<Record> outputIterator = queryPlan.execute();
+    Iterator<Record> outputIterator = queryPlan.executeOptimal();
 
     int count = 0;
     while (outputIterator.hasNext()) {
@@ -457,38 +369,21 @@ public class QueryPlanTest {
     }
 
     assertEquals(0, count);
+
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: WHERE\n" +
+                  "column: testAllTypes.int\n" +
+                  "predicate: GREATER_THAN_EQUALS\n" +
+                  "value: 2147483647\n" +
+                  "\ttype: SEQSCAN\n" +
+                  "\ttable: testAllTypes";
+    assertEquals(tree, finalOperator.toString());
+
     transaction.end();
   }
 
-  @Test
-  public void testEmptyJoinResult() throws DatabaseException, QueryPlanException {
-    Database.Transaction transaction = this.database.beginTransaction();
-    QueryPlan queryPlan = transaction.query(this.defaulTableName);
-
-    List<String> otherSchemaNames = new ArrayList<String>();
-    otherSchemaNames.add("otherInt");
-    List<DataType> otherSchemaTypes = new ArrayList<DataType>();
-    otherSchemaTypes.add(new IntDataType());
-    Schema otherSchema = new Schema(otherSchemaNames, otherSchemaTypes);
-
-    transaction.createTempTable(otherSchema, "TestOtherTableForEmptyJoin");
-
-    queryPlan.join("TestOtherTableForEmptyJoin", "int", "otherInt");
-
-    Iterator<Record> outputIterator = queryPlan.execute();
-
-    int count = 0;
-    while (outputIterator.hasNext()) {
-      outputIterator.next();
-      count++;
-    }
-
-    assertEquals(0, count);
-    transaction.end();
-  }
-
-  @Test
-  public void testIndexEqualityLookup() throws DatabaseException, QueryPlanException {
+  @Test(timeout=5000)
+  public void testIndexEqualityLookupIterator() throws DatabaseException, QueryPlanException {
     List<String> intTableNames = new ArrayList<String>() ;
     intTableNames.add("int");
 
@@ -500,26 +395,38 @@ public class QueryPlanTest {
     Database.Transaction transaction = this.database.beginTransaction();
 
     Record record = null;
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 5000; i++) {
       List<DataType> values = new ArrayList<DataType>();
       values.add(new IntDataType(i));
 
       transaction.addRecord("tempIntTable", values);
 
-      record = new Record(values);
+      if (i == 500) {
+        record = new Record(values);
+      }
     }
 
     QueryPlan queryPlan = transaction.query("tempIntTable");
-    queryPlan.where("int", QueryPlan.PredicateOperator.EQUALS, new IntDataType(99));
-    Iterator<Record> result = queryPlan.execute();
+    queryPlan.where("int",
+                    QueryPlan.PredicateOperator.EQUALS,
+                    new IntDataType(500));
+    Iterator<Record> result = queryPlan.executeOptimal();
 
     assertEquals(record, result.next());
 
     assertFalse(result.hasNext());
+
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: INDEXSCAN\n" +
+                  "table: tempIntTable\n" +
+                  "column: int\n" +
+                  "operator: EQUALS\n" +
+                  "value: 500";
+    assertEquals(tree, finalOperator.toString());
   }
 
-  @Test
-  public void testUseIndexRangeLookup() throws DatabaseException, QueryPlanException {
+  @Test(timeout=1000)
+  public void testIndexRangeLookupIterator() throws DatabaseException, QueryPlanException {
     List<String> intTableNames = new ArrayList<String>() ;
     intTableNames.add("int");
 
@@ -530,7 +437,7 @@ public class QueryPlanTest {
 
     Database.Transaction transaction = this.database.beginTransaction();
 
-    for (int i = 0; i < 100; i++) {
+    for (int i = 0; i < 1000; i++) {
       List<DataType> values = new ArrayList<DataType>();
       values.add(new IntDataType(i));
 
@@ -538,21 +445,36 @@ public class QueryPlanTest {
     }
 
     QueryPlan queryPlan = transaction.query("tempIntTable");
-    queryPlan.where("int", QueryPlan.PredicateOperator.GREATER_THAN_EQUALS, new IntDataType(50));
-    Iterator<Record> result = queryPlan.execute();
+    queryPlan.where("int",
+                    QueryPlan.PredicateOperator.GREATER_THAN_EQUALS,
+                    new IntDataType(900));
+    Iterator<Record> result = queryPlan.executeOptimal();
 
     int count = 0;
     while (result.hasNext()) {
-      assertEquals(count + 50, result.next().getValues().get(0).getInt());
+      IntDataType nextInt = (IntDataType) result.next().getValues().get(0);
+      assertEquals(count + 900, nextInt.getInt());
 
       count++;
     }
 
-    assertEquals(count, 50);
+    assertEquals(100, count);
+
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    // Note that the optimzer does NOT choose the index scan operator.
+    // Since indexes in our system are unclustered, the index scan
+    // operator is actually more expensive for most range queries.
+    String tree = "type: WHERE\n" +
+                  "column: tempIntTable.int\n" +
+                  "predicate: GREATER_THAN_EQUALS\n" +
+                  "value: 900\n" +
+                  "\ttype: SEQSCAN\n" +
+                  "\ttable: tempIntTable";
+    assertEquals(tree, finalOperator.toString());
   }
 
-  @Test
-  public void testSelectGroupByWithAggregates() throws DatabaseException, QueryPlanException {
+  @Test(timeout=60000)
+  public void testSelectGroupByWithAggregatesIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
@@ -565,7 +487,7 @@ public class QueryPlanTest {
     columnNames.add("int");
     queryPlan.select(columnNames);
 
-    Iterator<Record> recordIterator = queryPlan.execute();
+    Iterator<Record> recordIterator = queryPlan.executeOptimal();
 
     while (recordIterator.hasNext()) {
       Record record = recordIterator.next();
@@ -583,11 +505,20 @@ public class QueryPlanTest {
       assertEquals(sum / count, average, 10);
     }
 
+    QueryOperator finalOperator = queryPlan.getFinalOperator();
+    String tree = "type: SELECT\n" +
+                  "columns: [int, countAgg, sumAgg, averageAgg]\n" +
+                  "\ttype: GROUPBY\n" +
+                  "\tcolumn: testAllTypes.int\n" +
+                  "\t\ttype: SEQSCAN\n" +
+                  "\t\ttable: testAllTypes";
+    assertEquals(finalOperator.toString(), tree);
+
     transaction.end();
   }
 
-  @Test(expected = QueryPlanException.class)
-  public void testSelectColumnNotInGroupBy() throws DatabaseException, QueryPlanException {
+  @Test(timeout=500, expected = QueryPlanException.class)
+  public void testSelectColumnNotInGroupByIterator() throws DatabaseException, QueryPlanException {
     Database.Transaction transaction = this.database.beginTransaction();
     QueryPlan queryPlan = transaction.query(this.defaulTableName);
 
@@ -596,34 +527,7 @@ public class QueryPlanTest {
     columns.add("string");
     queryPlan.select(columns);
 
-    queryPlan.execute();
-
-    transaction.end();
-  }
-
-  @Test
-  public void testQueryAsWithJoin() throws DatabaseException, QueryPlanException {
-    Database.Transaction transaction = this.database.beginTransaction();
-    transaction.queryAs(this.defaulTableName, "t1");
-    transaction.queryAs(this.defaulTableName, "t2");
-
-    QueryPlan queryPlan = transaction.query("t1");
-    queryPlan.join("t2", "t1.int", "t2.int");
-
-    List<String> columnNames = new ArrayList<String>();
-    columnNames.add("t1.int");
-    columnNames.add("t2.int");
-    queryPlan.select(columnNames);
-
-    Iterator<Record> recordIterator = queryPlan.execute();
-
-    while (recordIterator.hasNext()) {
-      Record record = recordIterator.next();
-      List<DataType> values = record.getValues();
-
-      assertEquals(2, values.size());
-      assertEquals(values.get(0), values.get(1));
-    }
+    queryPlan.executeOptimal();
 
     transaction.end();
   }

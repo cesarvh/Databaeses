@@ -1,22 +1,22 @@
 package edu.berkeley.cs186.database.index;
 
-import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.RecordID;
 import edu.berkeley.cs186.database.datatypes.*;
 import edu.berkeley.cs186.database.StudentTest;
-import edu.berkeley.cs186.database.index.BPlusTreeException;
+
 import org.junit.After;
 import org.junit.Before;
 import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
+import org.junit.rules.Timeout;
 import org.junit.runners.MethodSorters;
 import org.junit.experimental.categories.Category;
 
-import java.io.IOException;
-import java.util.*;
-
+import java.util.Iterator;
+import java.util.Arrays;
+import java.util.Random;
 import static org.junit.Assert.*;
 
 public class TestBPlusTree {
@@ -27,6 +27,9 @@ public class TestBPlusTree {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
+  
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(80); // 80 seconds max per method tested
 
   @Before
   public void beforeEach() throws Exception {
@@ -133,14 +136,12 @@ public class TestBPlusTree {
     //Insert full leaf of records + 1
     for (int i = 0; i < intLeafPageSize + 1; i++) {
       bp.insertKey(new IntDataType(i), new RecordID(i,0));
-
     }
 
     Iterator<RecordID> rids = bp.sortedScan();
     assertTrue(rids.hasNext());
     int counter = 0;
     while (rids.hasNext()) {
-
       RecordID rid = rids.next();
       assertEquals(counter, rid.getPageNum());
       counter++;
@@ -201,7 +202,6 @@ public class TestBPlusTree {
     Random rand = new Random(0); //const seed 
     for (int i = 0; i < 10*intLeafPageSize; i++) {
       int val = rand.nextInt();
-
       bp.insertKey(new IntDataType(val), new RecordID(val, 0));
     }
     Iterator<RecordID> rids = bp.sortedScan();
@@ -221,9 +221,6 @@ public class TestBPlusTree {
 
     //Insert 4 full leafs of records in sweeping fashion
     for (int i = 0; i < 8*intLeafPageSize; i++) {
-//      if (i == 666) {
-//        int j = 0;
-//      }
       bp.insertKey(new IntDataType(i % 4), new RecordID(i % 4, i));
     }
     Iterator<RecordID> rids = bp.lookupKey(new IntDataType(0));
@@ -340,9 +337,6 @@ public class TestBPlusTree {
     for (int k = 0; k < 250; k++) {
       Iterator<RecordID> rids = bp.lookupKey(new IntDataType(k));
       for (int i = 0; i < 2*intLeafPageSize; i++) {
-        if (i == 788) {
-          int p = 0;
-        }
         assertTrue("Loop: " + k + " iteration " + i, rids.hasNext());
         RecordID rid = rids.next();
         assertEquals(k, rid.getPageNum());
@@ -350,13 +344,12 @@ public class TestBPlusTree {
       assertFalse(rids.hasNext());
     }
   }
-
   @Test
   public void testBPlusTreeRandomInsertSortedScanInnerSplit() {
     //insert enough for InnerNode Split; numEntries + firstChild
     Random rand = new Random(0); //const seed 
     int innerNodeSplit = intInnPageSize;
-
+    
     for (int i = 0; i < innerNodeSplit*intLeafPageSize; i++) {
       int val = rand.nextInt();
       bp.insertKey(new IntDataType(val), new RecordID(val, 0));
@@ -371,145 +364,6 @@ public class TestBPlusTree {
       last = rid.getPageNum();
     }
     assertFalse(rids.hasNext());
-  }
-
-
-  @Test
-  @Category(StudentTest.class)
-  public void testScanFromNonExistingKey() {
-    for (int i = 0; i < 100; i++) {
-      bp.insertKey(new IntDataType(i), new RecordID(i,0));
-    }
-    Iterator<RecordID> rids = bp.sortedScanFrom(new IntDataType(101));
-    assertFalse(rids.hasNext());
-  }
-
-  @Test
-  @Category(StudentTest.class)
-  public void testScanfFromEmptyTreeThenFromNonEmptyTreeAndInvalidRecordID() {
-    Iterator<RecordID> rids = this.bp.sortedScan();
-    assertFalse(rids.hasNext());
-    List<RecordID> records = new ArrayList<RecordID>();
-
-    for (int i = 0; i < 100; i++) {
-      RecordID id = new RecordID(i, 0);
-      bp.insertKey(new IntDataType(i), id);
-      records.add(id);
-    }
-    rids = this.bp.sortedScan();
-
-    for (int i = 0; i< 100; i++) {
-      assertTrue(rids.hasNext());
-      assertEquals(records.get(i), rids.next());
-    }
-
-
-  }
-
-  @Test
-  @Category(StudentTest.class)
-  public void testBeforeAfterSorted() {
-    RecordID id0 = new RecordID(0, 0);
-    RecordID id1 = new RecordID(0, 1);
-    RecordID id2 = new RecordID(0, 2);
-    RecordID id3 = new RecordID(0, 3);
-
-    bp.insertKey(new IntDataType(1), id1);
-    Iterator<RecordID> it = bp.sortedScanFrom(new IntDataType(1));
-    assertTrue(it.hasNext());
-    assertEquals(it.next(), id1);
-    assertFalse(it.hasNext());
-
-    bp.insertKey(new IntDataType(0), id0);
-    it = bp.sortedScanFrom(new IntDataType(1));
-    assertTrue(it.hasNext());
-    assertEquals(it.next(), id1);
-    assertFalse(it.hasNext());
-
-    bp.insertKey(new IntDataType(3), id3);
-    it = bp.sortedScanFrom(new IntDataType(1));
-    assertTrue(it.hasNext());
-    assertEquals(it.next(), id1);
-    assertTrue(it.hasNext());
-    assertEquals(it.next(), id3);
-
-    bp.insertKey(new IntDataType(2), id2);
-    it = bp.sortedScanFrom(new IntDataType(1));
-    assertTrue(it.hasNext());
-    assertEquals(it.next(), id1);
-    assertTrue(it.hasNext());
-    assertEquals(it.next(), id2);
-    assertTrue(it.hasNext());
-    assertEquals(it.next(), id3);
-
-
-
-
-  }
-
-  @Test
-  @Category(StudentTest.class)
-  public void testAllZeros() throws BPlusTreeException {
-    List<RecordID> records = new ArrayList<RecordID>();
-
-    for (int i = 0; i < 1000; i++) {
-      RecordID rid = new RecordID(i, 0);
-      bp.insertKey(new IntDataType(0), rid);
-      records.add(rid);
-    }
-
-      Iterator<RecordID> iter = bp.sortedScan();
-
-    int i = 0;
-    while (iter.hasNext()) {
-      assertEquals(iter.next(), records.get(i));
-      i++;
-    }
-
-    assertFalse(iter.hasNext());
-
-    iter = bp.lookupKey(new IntDataType(1));
-    assertFalse(iter.hasNext());
-
-    iter = bp.sortedScanFrom(new IntDataType(1));
-    assertFalse(iter.hasNext());
-
-
-
-
-
-
-  }
-
-  @Test
-  @Category(StudentTest.class)
-  public void testAddBackwardsAndForwardsIsSortedSameKey() {
-    List<RecordID> records = new ArrayList<RecordID>(100);
-    for (int i = 0; i < 100; i++) {
-      records.add(new RecordID(-1, -1));
-    }
-//    int b = 1000;
-    for (int i = 0; i < 50; i++) {
-      RecordID rid = new RecordID(i, 0);
-      bp.insertKey(new IntDataType(0), rid);
-      records.set(i, rid);
-    }
-
-    for (int i = 99; i >= 50; i--) {
-      RecordID rid = new RecordID(i, 0);
-      bp.insertKey(new IntDataType(0), rid);
-//      b --;
-      records.set(i, rid);
-    }
-
-    Iterator<RecordID> iter = bp.sortedScan();
-
-    int i = 0;
-    while (iter.hasNext()) {
-      assertEquals(iter.next(), records.get(i));
-      i++;
-    }
-
   }
 }
 

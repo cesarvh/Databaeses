@@ -3,6 +3,7 @@ package edu.berkeley.cs186.database.query;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.datatypes.DataType;
@@ -11,6 +12,7 @@ import edu.berkeley.cs186.database.datatypes.IntDataType;
 import edu.berkeley.cs186.database.table.MarkerRecord;
 import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.Schema;
+import edu.berkeley.cs186.database.table.stats.TableStats;
 
 public class SelectOperator extends QueryOperator {
   private List<String> columns;
@@ -69,6 +71,8 @@ public class SelectOperator extends QueryOperator {
     // the schema for the query optimization case.
     this.setSource(source);
 
+    this.stats = this.estimateStats();
+    this.cost = this.estimateIOCost();
   }
 
   protected Schema computeSchema() throws QueryPlanException {
@@ -137,8 +141,8 @@ public class SelectOperator extends QueryOperator {
   }
 
   /**
-   * Joins tuples from leftSource with tuples from rightSource based on whether the values in column
-   * leftColumnName are equal to tha values in column rightColumnName.
+   * Projects tuples from the source operator onto the columns specified in the SELECT.
+   * Preserves groups and calculates aggregates as well.
    *
    * @return an iterator of records
    * @throws QueryPlanException
@@ -262,6 +266,8 @@ public class SelectOperator extends QueryOperator {
     return newRecords.iterator();
   }
 
+  public Iterator<Record> iterator() throws QueryPlanException, DatabaseException { return new SelectIterator(); }
+
   private void addToCount() {
     this.countValue++;
   }
@@ -300,5 +306,165 @@ public class SelectOperator extends QueryOperator {
     this.averageSumValue = 0;
     this.averageCountValue = 0;
     return result;
+  }
+
+  public String str() {
+    return "type: " + this.getType() +
+        "\ncolumns: " + this.columns;
+  }
+
+  /**
+   * Estimates the table statistics for the result of executing this query operator.
+   *
+   * @return estimated TableStats
+   */
+  public TableStats estimateStats() throws QueryPlanException {
+    return this.getSource().getStats();
+  }
+
+  public int estimateIOCost() throws QueryPlanException {
+    return this.getSource().getIOCost();
+  }
+
+  /**
+   * An implementation of Iterator that provides an iterator interface for this operator.
+   */
+  private class SelectIterator implements Iterator<Record> {
+    private Iterator<Record> sourceIterator;
+    private MarkerRecord markerRecord;
+    private Record nextRecord;
+    private boolean prevWasMarker;
+    private List<DataType> baseValues;
+
+    public SelectIterator() throws QueryPlanException, DatabaseException {
+      this.sourceIterator = SelectOperator.this.getSource().iterator();
+      this.markerRecord = MarkerRecord.getMarker();
+      this.nextRecord = null;
+      this.prevWasMarker = true;
+      this.baseValues = new ArrayList<DataType>();
+    }
+
+    /**
+     * Checks if there are more record(s) to yield
+     *
+     * @return true if this iterator has another record to yield, otherwise false
+     */
+    public boolean hasNext() {
+      return this.sourceIterator.hasNext();
+    }
+
+    /**
+     * Yields the next record of this iterator.
+     *
+     * @return the next Record
+     * @throws NoSuchElementException if there are no more Records to yield
+     */
+    public Record next() {
+      if (this.hasNext()) {
+        if (SelectOperator.this.hasAggregate) {
+          while (this.sourceIterator.hasNext()) {
+            Record r = this.sourceIterator.next();
+            List<DataType> recordValues = r.getValues();
+
+            // if the record is a MarkerRecord, that means we reached the end of a group... we reset
+            // the aggregates and add the appropriate new record to the new Records
+            if (r == this.markerRecord) {
+              if (SelectOperator.this.hasCount) {
+                int count = SelectOperator.this.getAndResetCount();
+                this.baseValues.add(new IntDataType(count));
+              }
+
+              if (SelectOperator.this.sumColumnIndex != -1) {
+                double sum = SelectOperator.this.getAndResetSum();
+
+                if (SelectOperator.this.sumIsFloat) {
+                  this.baseValues.add(new FloatDataType((float) sum));
+                } else {
+                  this.baseValues.add(new IntDataType((int) sum));
+                }
+              }
+
+              if (SelectOperator.this.averageColumnIndex != -1) {
+                double average = (float) SelectOperator.this.getAndResetAverage();
+                this.baseValues.add(new FloatDataType((float) average));
+              }
+
+              // record that we just saw a marker record
+              this.prevWasMarker = true;
+
+              return new Record(this.baseValues);
+            } else {
+              // if the previous record was a marker (or for the first record) we have to get the relevant
+              // fields out of the record
+              if (this.prevWasMarker) {
+                this.baseValues = new ArrayList<DataType>();
+                for (int index : SelectOperator.this.indices) {
+                  this.baseValues.add(recordValues.get(index));
+                }
+
+                this.prevWasMarker = false;
+              }
+
+              if (SelectOperator.this.hasCount) {
+                SelectOperator.this.addToCount();
+              }
+
+              if (SelectOperator.this.sumColumnIndex != -1) {
+                SelectOperator.this.addToSum(r);
+              }
+
+              if (SelectOperator.this.averageColumnIndex != -1) {
+                SelectOperator.this.addToAverage(r);
+              }
+            }
+          }
+
+          // at the very end, we need to make sure we add all the aggregated records to the result
+          // either because there was no group by or to add the last group we saw
+          if (SelectOperator.this.hasCount) {
+            int count = SelectOperator.this.getAndResetCount();
+            this.baseValues.add(new IntDataType(count));
+          }
+
+          if (SelectOperator.this.sumColumnIndex != -1) {
+            double sum = SelectOperator.this.getAndResetSum();
+
+            if (SelectOperator.this.sumIsFloat) {
+              this.baseValues.add(new FloatDataType((float) sum));
+            } else {
+              this.baseValues.add(new IntDataType((int) sum));
+            }
+          }
+
+          if (SelectOperator.this.averageColumnIndex != -1) {
+            double average = SelectOperator.this.getAndResetAverage();
+            this.baseValues.add(new FloatDataType((float) average));
+          }
+
+          return new Record(this.baseValues);
+        } else {
+          Record r = this.sourceIterator.next();
+          List<DataType> recordValues = r.getValues();
+          List<DataType> newValues = new ArrayList<DataType>();
+
+          // if there is a marker record (in the case we're selecting from a group by), we simply
+          // leave the marker records in
+          if (r == this.markerRecord) {
+            return markerRecord;
+          } else {
+            for (int index : SelectOperator.this.indices) {
+              newValues.add(recordValues.get(index));
+            }
+
+            return new Record(newValues);
+          }
+        }
+      }
+      throw new NoSuchElementException();
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
 }

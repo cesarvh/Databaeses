@@ -3,35 +3,57 @@ package edu.berkeley.cs186.database.query;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.NoSuchElementException;
 
+import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.table.Record;
+import edu.berkeley.cs186.database.table.RecordID;
 import edu.berkeley.cs186.database.table.Schema;
+import edu.berkeley.cs186.database.table.stats.TableStats;
+import edu.berkeley.cs186.database.io.Page;
 
-public class JoinOperator extends QueryOperator {
-  private QueryOperator leftSource;
-  private QueryOperator rightSource;
-  private int leftColumnIndex;
-  private int rightColumnIndex;
+public abstract class JoinOperator extends QueryOperator {
+
+  public enum JoinType {
+    SNLJ,
+    PNLJ,
+    BNLJ,
+    GRACEHASH
+  }
+
   private String leftColumnName;
   private String rightColumnName;
 
+  private int leftColumnIndex;
+  private int rightColumnIndex;
+
+  private JoinType joinType;
+  private QueryOperator leftSource;
+  private QueryOperator rightSource;
+  private Database.Transaction transaction;
+
   /**
    * Create a join operator that pulls tuples from leftSource and rightSource. Returns tuples for which
-   * leftColumnName and rightColumnName are equal.
+   * leftColumnName and rightColumnName are equal. The type of join to execute must be specified.
    *
    * @param leftSource the left source operator
    * @param rightSource the right source operator
    * @param leftColumnName the column to join on from leftSource
    * @param rightColumnName the column to join on from rightSource
+   * @param joinType the type of join this operator executes
    * @throws QueryPlanException
    */
   public JoinOperator(QueryOperator leftSource,
                       QueryOperator rightSource,
                       String leftColumnName,
-                      String rightColumnName) throws QueryPlanException {
+                      String rightColumnName,
+                      Database.Transaction transaction,
+                      JoinType joinType) throws QueryPlanException, DatabaseException {
     super(OperatorType.JOIN);
+
+    this.joinType = joinType;
 
     this.leftSource = leftSource;
     this.rightSource = rightSource;
@@ -39,10 +61,13 @@ public class JoinOperator extends QueryOperator {
     this.leftColumnName = leftColumnName;
     this.rightColumnName = rightColumnName;
     this.setOutputSchema(this.computeSchema());
+
+    this.transaction = transaction;
   }
 
   /**
    * Joins tuples from leftSource and rightSource and returns an iterator of records.
+   * Executes a join using simple nested loop join.
    *
    * @return an iterator of records
    * @throws QueryPlanException
@@ -74,6 +99,8 @@ public class JoinOperator extends QueryOperator {
 
     return newRecords.iterator();
   }
+
+  public abstract Iterator<Record> iterator() throws QueryPlanException, DatabaseException;
 
   @Override
   public QueryOperator getSource() throws QueryPlanException {
@@ -122,5 +149,97 @@ public class JoinOperator extends QueryOperator {
     leftSchemaTypes.addAll(rightSchemaTypes);
 
     return new Schema(leftSchemaNames, leftSchemaTypes);
+  }
+
+  public String str() {
+    return "type: " + this.joinType +
+        "\nleftColumn: " + this.leftColumnName +
+        "\nrightColumn: " + this.rightColumnName;
+  }
+
+  public String toString() {
+    String r = this.str();
+    if (this.leftSource != null) {
+      r += "\n" + ("(left)\n" + this.leftSource.toString()).replaceAll("(?m)^", "\t");
+    }
+    if (this.rightSource != null) {
+      if (this.leftSource != null) {
+        r += "\n";
+      }
+      r += "\n" + ("(right)\n" + this.rightSource.toString()).replaceAll("(?m)^", "\t");
+    }
+    return r;
+  }
+
+  /**
+   * Estimates the table statistics for the result of executing this query operator.
+   *
+   * @return estimated TableStats
+   */
+  public TableStats estimateStats() throws QueryPlanException {
+    TableStats leftStats = this.leftSource.getStats();
+    TableStats rightStats = this.rightSource.getStats();
+
+    return leftStats.copyWithJoin(this.leftColumnIndex,
+                                  rightStats,
+                                  this.rightColumnIndex);
+  }
+
+  public abstract int estimateIOCost() throws QueryPlanException;
+
+  public Iterator<Page> getPageIterator(String tableName) throws DatabaseException {
+    return this.transaction.getPageIterator(tableName);
+  }
+
+  public byte[] getPageHeader(String tableName, Page p) throws DatabaseException {
+    return this.transaction.readPageHeader(tableName, p);
+  }
+
+  public int getNumEntriesPerPage(String tableName) throws DatabaseException {
+    return this.transaction.getNumEntriesPerPage(tableName);
+  }
+
+  public int getEntrySize(String tableName) throws DatabaseException {
+    return this.transaction.getEntrySize(tableName);
+  }
+
+  public int getHeaderSize(String tableName) throws DatabaseException {
+    return this.transaction.getPageHeaderSize(tableName);
+  }
+
+  public String getLeftColumnName() {
+    return this.leftColumnName;
+  }
+
+  public String getRightColumnName() {
+    return this.rightColumnName;
+  }
+
+  public Database.Transaction getTransaction() {
+    return this.transaction;
+  }
+
+  public int getLeftColumnIndex() {
+    return this.leftColumnIndex;
+  }
+
+  public int getRightColumnIndex() {
+    return this.rightColumnIndex;
+  }
+
+  public Iterator<Record> getTableIterator(String tableName) throws DatabaseException {
+    return this.transaction.getRecordIterator(tableName);
+  }
+
+  public void createTempTable(Schema schema, String tableName) throws DatabaseException {
+    this.transaction.createTempTable(schema, tableName);
+  }
+
+  public RecordID addRecord(String tableName, List<DataType> values) throws DatabaseException {
+    return this.transaction.addRecord(tableName, values);
+  }
+
+  public JoinType getJoinType() {
+    return this.joinType;
   }
 }

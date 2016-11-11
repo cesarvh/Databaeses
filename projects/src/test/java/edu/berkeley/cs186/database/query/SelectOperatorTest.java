@@ -2,6 +2,8 @@ package edu.berkeley.cs186.database.query;
 
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
+import org.junit.Rule;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -10,6 +12,7 @@ import java.util.List;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.TestUtils;
 import edu.berkeley.cs186.database.StudentTest;
+import edu.berkeley.cs186.database.StudentTestP2;
 import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.datatypes.FloatDataType;
 import edu.berkeley.cs186.database.datatypes.IntDataType;
@@ -19,6 +22,9 @@ import edu.berkeley.cs186.database.table.Schema;
 import static org.junit.Assert.*;
 
 public class SelectOperatorTest {
+  
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(1); // 1 seconds max per method tested
 
   @Test
   public void testOperatorSchema() throws QueryPlanException {

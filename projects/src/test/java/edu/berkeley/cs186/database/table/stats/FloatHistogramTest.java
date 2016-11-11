@@ -1,6 +1,7 @@
 package edu.berkeley.cs186.database.table.stats;
 
 import edu.berkeley.cs186.database.StudentTest;
+import edu.berkeley.cs186.database.StudentTestP2;
 
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -9,49 +10,25 @@ import static org.junit.Assert.*;
 
 public class FloatHistogramTest {
 
-  @Test
+  @Test(timeout=1000)
   public void testSimpleHistogram() {
     FloatHistogram histogram = new FloatHistogram();
 
-    // this will create a histogram from 0 -> 10
-    histogram.addValue(5f);
-
-    for (float i = 0; i < 10; i++) {
-      histogram.addValue(i);
+    for (int i = 0; i < 10; i++) {
+      histogram.addValue(i * 1.0f);
     }
 
-    for (float i = 0; i < 10; i++) {
-      if (i != 5) {
-        assertEquals(1, histogram.getEntriesInRange(i, i + 1));
-      } else {
-        assertEquals(2, histogram.getEntriesInRange(i, i + 1));
-      }
-    }
+    assertEquals(10, histogram.getEntriesInRange(0.0f, 10.0f));
   }
 
-  @Test
-  public void testHistogramExpand() {
+  @Test(timeout=1000)
+  public void testComplexHistogram() {
     FloatHistogram histogram = new FloatHistogram();
 
-    // this will create a histogram from 0 -> 10
-    histogram.addValue(5f);
-
-    histogram.addValue(100f);
-
-    float count = 0;
-    for (Bucket<Float> bucket : histogram.getAllBuckets()) {
-      assertEquals(count, bucket.getStart(), .0001);
-
-      if (count < 90) {
-        assertEquals(count + 10, bucket.getEnd(), .0001);
-      } else {
-        assertEquals(count + 11, bucket.getEnd(), .0001);
-      }
-
-      count += 10;
+    for (int i = 0; i < 40; i++) {
+      histogram.addValue(i * 1.0f);
     }
 
-    assertEquals(1, histogram.getAllBuckets().get(0).getCount());
-    assertEquals(1, histogram.getAllBuckets().get(9).getCount());
+    assertEquals(11, histogram.getEntriesInRange(0.0f, 10.0f));
   }
 }

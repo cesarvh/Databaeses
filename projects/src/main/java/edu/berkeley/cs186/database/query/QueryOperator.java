@@ -6,11 +6,14 @@ import java.util.List;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.Schema;
+import edu.berkeley.cs186.database.table.stats.TableStats;
 
 public abstract class QueryOperator {
-  private QueryOperator source;
+  protected QueryOperator source;
   private QueryOperator destination;
   private Schema operatorSchema;
+  protected TableStats stats;
+  protected int cost;
 
   public enum OperatorType {
     JOIN,
@@ -94,6 +97,8 @@ public abstract class QueryOperator {
 
   public abstract Iterator<Record> execute() throws QueryPlanException, DatabaseException;
 
+  public abstract Iterator<Record> iterator() throws QueryPlanException, DatabaseException;
+
   /**
    * Utility method that checks to see if a column is found in a schema using dot notation.
    *
@@ -106,9 +111,12 @@ public abstract class QueryOperator {
       return true;
     }
 
-    if (fromSchema.contains(".")) {
-      String[] splits = fromSchema.split("\\.");
-      String schemaColName = splits[1];
+    if (!specified.contains(".")) {
+      String schemaColName = fromSchema;
+      if (fromSchema.contains(".")) {
+        String[] splits = fromSchema.split("\\.");
+        schemaColName = splits[1];
+      }
 
       return schemaColName.equals(specified);
     }
@@ -145,5 +153,39 @@ public abstract class QueryOperator {
     }
 
     return foundName;
+  }
+
+  public String str() {
+    return "type: " + this.getType();
+  }
+
+  public String toString() {
+    String r = this.str();
+    if (this.source != null) {
+      r += "\n" + this.source.toString().replaceAll("(?m)^", "\t");
+    }
+    return r;
+  }
+
+  /**
+   * Estimates the table statistics for the result of executing this query operator.
+   *
+   * @return estimated TableStats
+   */
+  protected abstract TableStats estimateStats() throws QueryPlanException;
+
+  /**
+   * Estimates the IO cost of executing this query operator.
+   *
+   * @return estimated number of IO's performed
+   */
+  protected abstract int estimateIOCost() throws QueryPlanException;
+
+  public TableStats getStats() {
+    return this.stats;
+  }
+
+  public int getIOCost() {
+    return this.cost;
   }
 }

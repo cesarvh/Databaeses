@@ -5,6 +5,8 @@ import edu.berkeley.cs186.database.StudentTest;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.Rule;
+import org.junit.rules.Timeout;
 
 /**
 * @author  Sammy Sidhu
@@ -12,6 +14,9 @@ import org.junit.experimental.categories.Category;
 */
 
 public class TestBoolDataType {
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(1); // 1 seconds max per method tested
+  
   @Test
   public void TestBoolDataTypeConstructor() {
     DataType first = new BoolDataType(true);

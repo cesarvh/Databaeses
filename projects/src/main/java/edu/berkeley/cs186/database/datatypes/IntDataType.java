@@ -63,6 +63,11 @@ public class IntDataType extends DataType {
     return this.getInt() == other.getInt();
   }
 
+  @Override
+  public int hashCode() {
+    return Math.abs(this.getInt());
+  }
+
   public int compareTo(Object obj) {
     if (this.getClass() != obj.getClass()) {
       throw new DataTypeException("Invalid Comparsion");

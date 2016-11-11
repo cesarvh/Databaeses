@@ -143,6 +143,10 @@ public class BPlusTree {
     return lookupKey(key).hasNext();
   }
 
+  public int getNumPages() {
+    return this.allocator.getNumPages();
+  }
+
   /**
    * Updates where the root page is. Should be called whenever the root node has been split
    *
@@ -226,10 +230,9 @@ public class BPlusTree {
    */
 
     public BPlusIterator(LeafNode leaf) {
-      //TODO: Implement Me!
-//      this.leaf = leaf;
-        this.currLeaf = leaf;
-        this.currLeafIter = leaf.scan();
+      this.currLeaf = leaf;
+      this.currLeafIter = leaf.scan();
+      this.isScan = true;
     }
 
   /**
@@ -242,45 +245,24 @@ public class BPlusTree {
    */
 
     public BPlusIterator(LeafNode leaf, DataType key, boolean scan) {
-      //TODO: Implement Me!
-        this.isScan = scan;
-        this.currLeaf = leaf;
-        this.lookupKey = key;
-
+      this.currLeaf = leaf;
+      this.isScan = scan;
+      this.lookupKey = key;
       if (scan) {
-        this.currLeafIter = currLeaf.scanFrom(key);
+        this.currLeafIter = leaf.scanFrom(key);
+        if (!currLeafIter.hasNext() && currLeaf.getNextLeaf() > 0) {
+          int nextLeafPageNum = currLeaf.getNextLeaf();
+          this.currLeaf = new LeafNode(BPlusTree.this, nextLeafPageNum);
+          this.currLeafIter = currLeaf.scan();
+        }
       } else {
-        this.currLeafIter = currLeaf.scanForKey(key);
+        this.currLeafIter = leaf.scanForKey(key);
       }
     }
 
     public boolean hasNext() {
-        //TODO: Implement Me!
-        if (!this.currLeafIter.hasNext()) {
-
-            if (this.currLeaf.getNextLeaf() == -1) {
-                return false;
-
-            } else if (this.currLeaf.getNextLeaf() != -1) {
-                // then we switch 'em
-                this.currLeaf = (LeafNode) BPlusNode.getBPlusNode(this.currLeaf.getTree(), this.currLeaf.getNextLeaf());
-
-                if (this.isScan && this.lookupKey != null) {
-                    this.currLeafIter = this.currLeaf.scanFrom(this.lookupKey);
-                } else if (!this.isScan && this.lookupKey != null) {
-                    this.currLeafIter = this.currLeaf.scanForKey(this.lookupKey);
-                } else {
-                    this.currLeafIter = this.currLeaf.scan();
-                }
-                if (!this.currLeafIter.hasNext()) {
-                    return false;
-                }
-                return true;
-            }
-        }
-        return true;
+      return this.currLeafIter.hasNext();
     }
-
 
     /**
      * Yields the next RecordID of this iterator.
@@ -289,17 +271,25 @@ public class BPlusTree {
      * @throws NoSuchElementException if there are no more Records to yield
      */
     public RecordID next() {
-      //TODO: Implement Me!
-      if (this.hasNext()) {
-          return this.currLeafIter.next();
-      } else{
-          throw new NoSuchElementException("No.");
+      if (hasNext()) {
+        RecordID rid = currLeafIter.next();
+        if (!currLeafIter.hasNext()
+            && currLeaf.getNextLeaf() > 0) {
+          int nextLeafPageNum = currLeaf.getNextLeaf();
+          this.currLeaf = new LeafNode(BPlusTree.this, nextLeafPageNum);
+
+          if (isScan) {
+            this.currLeafIter = currLeaf.scan();
+          } else {
+            this.currLeafIter = currLeaf.scanForKey(lookupKey);
+          }
         }
+        return rid;
+      }
+      throw new NoSuchElementException();
     }
 
-
-
-  public void remove() {
+    public void remove() {
       throw new UnsupportedOperationException();
     }
   }

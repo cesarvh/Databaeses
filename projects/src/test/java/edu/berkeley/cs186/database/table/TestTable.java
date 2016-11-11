@@ -1,6 +1,5 @@
 package edu.berkeley.cs186.database.table;
 
-import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.TestUtils;
 import edu.berkeley.cs186.database.StudentTest;
@@ -17,6 +16,7 @@ import org.junit.runners.MethodSorters;
 import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,6 +33,9 @@ public class TestTable {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
 
   @Before
   public void beforeEach() throws Exception {
@@ -424,80 +427,7 @@ public class TestTable {
       assertEquals(input, r);
     }
     assertFalse(iRec.hasNext());
-  }
+  }   
 
-  @Test(expected = DatabaseException.class)
-  @Category(StudentTest.class)
-  public void addInvalidSchemaKey() throws DatabaseException {
-      // Try to add invalid schema value into a table
-      Schema boolSchema = TestUtils.createSchemaOfBool();
-      Table boolTable = createTestTable(boolSchema, "boolTable");
-      Record values = TestUtils.createRecordWithAllTypes();
-      boolTable.addRecord(values.getValues());
-  }
-
-  @Test(expected = DatabaseException.class)
-  @Category(StudentTest.class)
-  public void testEmptyTable() throws DatabaseException {
-    int pageNum = 0;
-    int slotnum = 0;
-    // checking that if nothing has been added, we get an exception
-    Schema schema = TestUtils.createSchemaWithAllTypes();
-    RecordID rid = new RecordID(pageNum, slotnum);
-    Record record = this.table.getRecord(rid);
-  }
-
-  @Test(expected = DatabaseException.class)
-  @Category(StudentTest.class)
-  public void testValidThenDeleteThenTestValidity() throws DatabaseException {
-    Schema schema = TestUtils.createSchemaWithAllTypes();
-    Record input = TestUtils.createRecordWithAllTypes();
-    List<RecordID> rids = new ArrayList<RecordID>();
-
-    // populate with 500 records
-    for (int i = 0; i < 1000; i += 1) {
-        input.getValues().get(1).setInt(i);
-        rids.add(table.addRecord(input.getValues()));
-    }
-    long numPerPage = this.table.numRecords();
-    assertEquals(numPerPage, 1000);
-
-    RecordID rid = new RecordID(1, 1);
-    assertNotNull(this.table.getRecord(rid));
-
-    this.table.deleteRecord(rid);
-    this.table.getRecord(rid);
-
-  }
-
-  @Test
-  @Category(StudentTest.class)
-  public void testSingleRecordOnBack() throws DatabaseException {
-    Schema schema = TestUtils.createSchemaWithAllTypes();
-    Record input = TestUtils.createRecordWithAllTypes();
-    List<RecordID> rids = new ArrayList<RecordID>();
-
-    // populate with 500 records
-    for (int i = 0; i < 10000; i += 1) {
-      input.getValues().get(1).setInt(i);
-      rids.add(table.addRecord(input.getValues()));
-    }
-    long numPerPage = this.table.numRecords();
-    assertEquals(numPerPage, 10000);
-
-    for (int i = 0; i < 9999; i++) {
-      this.table.deleteRecord(rids.get(i));
-    }
-
-    Iterator<Record> riTerator = this.table.iterator();
-
-    assertTrue(riTerator.hasNext());
-
-    Record lastID = riTerator.next();
-    Record lastR = this.table.getRecord(rids.get(rids.size()-1));
-    assertEquals(lastID, lastR);
-    assertEquals(1, this.table.numRecords());
-
-  }
 
 }

@@ -46,21 +46,26 @@ public class FloatDataType extends DataType {
     this.f = f;
   }
 
-  @Override 
+  @Override
   public Types type() {
-    return DataType.Types.FLOAT; 
+    return DataType.Types.FLOAT;
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) 
+    if (this == obj)
       return true;
-    if (this == null) 
+    if (this == null)
       return false;
     if (this.getClass() != obj.getClass())
       return false;
     FloatDataType other = (FloatDataType) obj;
     return this.getFloat() == other.getFloat();
+  }
+
+  @Override
+  public int hashCode() {
+    return (int) this.getFloat();
   }
 
   public int compareTo(Object obj) {
@@ -70,7 +75,7 @@ public class FloatDataType extends DataType {
     FloatDataType other = (FloatDataType) obj;
     return Float.compare(this.getFloat(), other.getFloat());
   }
- 
+
   @Override
   public byte[] getBytes() {
     return ByteBuffer.allocate(4).putFloat(this.f).array();
@@ -80,7 +85,7 @@ public class FloatDataType extends DataType {
   public int getSize() {
     return 4;
   }
-  
+
   @Override
   public String toString() {
     return "" + this.f;

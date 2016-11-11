@@ -46,21 +46,26 @@ public class BoolDataType extends DataType {
     this.bool = b;
   }
 
-  @Override 
+  @Override
   public Types type() {
-    return DataType.Types.BOOL; 
+    return DataType.Types.BOOL;
   }
 
   @Override
   public boolean equals(Object obj) {
-    if (this == obj) 
+    if (this == obj)
       return true;
-    if (this == null) 
+    if (this == null)
       return false;
     if (this.getClass() != obj.getClass())
       return false;
     BoolDataType other = (BoolDataType) obj;
     return Boolean.compare(this.getBool(),other.getBool()) == 0;
+  }
+
+  @Override
+  public int hashCode() {
+    return this.getBool() ? 1 : 0;
   }
 
   public int compareTo(Object obj) {

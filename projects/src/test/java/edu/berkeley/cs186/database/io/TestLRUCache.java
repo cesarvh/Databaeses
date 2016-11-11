@@ -5,6 +5,7 @@ import edu.berkeley.cs186.database.StudentTest;
 import static org.junit.Assert.*;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.Timeout;
 import org.junit.rules.TemporaryFolder;
 import org.junit.experimental.categories.Category;
 import java.nio.channels.FileChannel;
@@ -23,6 +24,9 @@ public class TestLRUCache {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
+  
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
  
   @Test
   public void TestLRUCache() throws IOException {

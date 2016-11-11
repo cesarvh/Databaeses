@@ -13,11 +13,13 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import org.junit.rules.Timeout;
 
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.TestUtils;
 import edu.berkeley.cs186.database.StudentTest;
+import edu.berkeley.cs186.database.StudentTestP2;
 import edu.berkeley.cs186.database.table.MarkerRecord;
 import edu.berkeley.cs186.database.table.Record;
 
@@ -27,6 +29,10 @@ public class GroupByOperatorTest {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
+
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(5); // 5 seconds max per method tested
+
 
   @Test
   public void testOperatorSchema() throws QueryPlanException {

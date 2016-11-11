@@ -14,10 +14,13 @@ import edu.berkeley.cs186.database.table.stats.TableStats;
 import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.TreeSet;
 
+import java.util.NoSuchElementException;
+import java.util.Iterator;
 import java.io.Closeable;
-import java.util.concurrent.Exchanger;
 
 /**
  * A database table. Allows the user to add, delete, update, and get records.
@@ -50,17 +53,13 @@ public class Table implements Iterable<Record>, Closeable {
   private int numEntriesPerPage;
   private int pageHeaderSize;
   private long numRecords;
-//  private ArrayList<RecordID> recordIds;// = new ArrayList<RecordID>();
 
   public Table(String tableName) {
     this(tableName, FILENAME_PREFIX);
   }
 
   public Table(String tableName, String filenamePrefix) {
-
-
     this.tableName = tableName;
-//    this.recordIds = new ArrayList<RecordID>();
 
     String pathname = Paths.get(filenamePrefix, tableName + FILENAME_EXTENSION).toString();
     this.allocator = new PageAllocator(pathname, false);
@@ -74,10 +73,9 @@ public class Table implements Iterable<Record>, Closeable {
     pIter.next();
 
     long freshCountRecords = 0;
-    int pageNum = 0; // Page count
+
     while(pIter.hasNext()) {
       Page p = pIter.next();
-      pageNum++;
 
       // add all records in this page to TableStats
       int entryNum = 0;
@@ -89,7 +87,6 @@ public class Table implements Iterable<Record>, Closeable {
 
         byte value = (byte) (b & mask);
         if (value != 0) {
-          RecordID rid = new RecordID(pageNum, entryNum);
           int entrySize = this.schema.getEntrySize();
 
           int offset = this.pageHeaderSize + (entrySize * entryNum);
@@ -99,7 +96,6 @@ public class Table implements Iterable<Record>, Closeable {
           entryNum++;
 
           this.stats.addRecord(record);
-//          this.recordIds.add(rid);
         }
 
         entryNum++;
@@ -130,7 +126,7 @@ public class Table implements Iterable<Record>, Closeable {
     this.schema = schema;
     this.tableName = tableName;
     this.stats = new TableStats(this.schema);
-//    this.recordIds = new ArrayList<RecordID>();
+
     this.freePages = new TreeSet<Integer>();
     String pathname = Paths.get(filenamePrefix, tableName + FILENAME_EXTENSION).toString();
     this.allocator = new PageAllocator(pathname, true);
@@ -148,6 +144,10 @@ public class Table implements Iterable<Record>, Closeable {
       return new TableIterator();
   }
 
+  public Iterator<Page> pageIterator() {
+    return this.allocator.iterator();
+  }
+
   /**
    * Add a new record to this table. The record should be added to the first
    * free slot of the first free page if one exists, otherwise a new page should
@@ -162,63 +162,65 @@ public class Table implements Iterable<Record>, Closeable {
    *         correspond to the schema of this table
    */
   public RecordID addRecord(List<DataType> values) throws DatabaseException {
-    Record record = null;
-
+    Record record;
     try {
-        record = this.schema.verify(values);
-    } catch (SchemaException e) {
-        throw new DatabaseException("Values passed do not correspond to the schema of this table");
+      record = this.schema.verify(values);
+    } catch (SchemaException se) {
+      throw new DatabaseException(se.getMessage());
     }
 
-    int pageNum;
-    if (this.freePages.size() == 0) {
-        pageNum = this.allocator.allocPage();
-    } else {
-        pageNum = this.freePages.first();
-    }
-    byte[] encoded = this.schema.encode(record);
-    Page page = this.allocator.fetchPage(pageNum);
-    byte[] header = this.readPageHeader(page);
+    boolean found = false;
+    Page page = null;
+    int slotNum = 0;
 
-    int slotNumber = 0;
-    int slotIsValid = 1;
-    int position = 0;
-
-    while (slotNumber < this.numEntriesPerPage && slotIsValid != 0) {
-      byte b = header[slotNumber / 8];
-      int bitOffset = 7 - (slotNumber % 8);
-      byte mask = (byte) (1 << bitOffset);
-
-      slotIsValid = (b & mask);
-      if (slotIsValid == 0) {
-        position = this.pageHeaderSize + (this.schema.getEntrySize() * slotNumber);
-        break;
-
+    while (!found) {
+      if (!this.freePages.isEmpty()) {
+        page = this.allocator.fetchPage(this.freePages.first());
       } else {
-        slotNumber += 1;
+        int pageNum = this.allocator.allocPage();
+        page = this.allocator.fetchPage(pageNum);
+        this.freePages.add(page.getPageNum());
+      }
+      slotNum = 0;
+
+      byte[] header = this.readPageHeader(page);
+
+      for (byte b : header) {
+        if (b != (byte) 0xFF) {
+          for (int j = 7; j >= 0; j--) {
+            byte mask = (byte) (1 << j);
+            if ((b & mask) == (byte) 0) {
+              found = true;
+              break;
+            }
+
+            slotNum++;
+          }
+        } else {
+          slotNum += 8;
+        }
+
+        if (found) {
+          break;
+        }
+      }
+
+      if (!found) {
+        this.freePages.pollFirst();
       }
     }
 
-    this.writeBitToHeader(page, slotNumber, (byte) 1);
-    page.writeBytes(position, this.schema.getEntrySize(), encoded);
+    this.writeBitToHeader(page, slotNum, (byte) 1);
 
+    int offset = this.pageHeaderSize + (slotNum * this.schema.getEntrySize());
+    byte[] bytes = this.schema.encode(record);
 
-    if (!spaceOnPage(page)) {
-      freePages.remove(pageNum);
-    } else {
-      freePages.add(pageNum);
-    }
+    page.writeBytes(offset, bytes.length, bytes);
+    this.numRecords++;
 
-    RecordID rid = new RecordID(pageNum, slotNumber);
-
-    this.numRecords += 1;
     this.stats.addRecord(record);
 
-//    this.recordIds.add(rid);
-
-    return rid;
-
-
+    return new RecordID(page.getPageNum(), slotNum);
   }
 
   /**
@@ -230,22 +232,24 @@ public class Table implements Iterable<Record>, Closeable {
    * @throws DatabaseException if rid does not correspond to a valid record
    */
   public Record deleteRecord(RecordID rid) throws DatabaseException {
-      try {
-          int pageNum = rid.getPageNum();
-          int slotNum = rid.getSlotNumber();
-          Page page = this.allocator.fetchPage(pageNum);
-          Record record = this.getRecord(rid);
-          writeBitToHeader(page, slotNum, (byte) 0);
+    if (!this.checkRecordIDValidity(rid)) {
+      throw new DatabaseException("Invalid RecordID " + rid + ".");
+    }
 
-          this.numRecords -= 1;
-          this.stats.removeRecord(record);
+    Page page = this.allocator.fetchPage(rid.getPageNum());
+    int entrySize = this.schema.getEntrySize();
+    int slotNum = rid.getSlotNumber();
 
-//          this.recordIds.remove(rid);
-          return record;
-      } catch (Exception e) {
-          throw new DatabaseException("Invalid record id");
-      }
+    int offset = this.pageHeaderSize + (entrySize * slotNum);
+    Record oldRecord = this.schema.decode(page.readBytes(offset, entrySize));
 
+    this.writeBitToHeader(page, slotNum, (byte) 0);
+    this.freePages.add(page.getPageNum());
+    this.numRecords--;
+
+    this.stats.removeRecord(oldRecord);
+
+    return oldRecord;
   }
 
   /**
@@ -256,27 +260,17 @@ public class Table implements Iterable<Record>, Closeable {
    * @throws DatabaseException if rid does not correspond to a valid record
    */
   public Record getRecord(RecordID rid) throws DatabaseException {
-    boolean valid;
-    try {
-        valid = this.checkRecordIDValidity(rid);
-    } catch (DatabaseException e) {
-        // System.out.println();
-        throw new DatabaseException("stop");
-    }
-    if (!valid) {
-        throw new DatabaseException("stop");
+    if (!this.checkRecordIDValidity(rid)) {
+      throw new DatabaseException("Invalid RecordID " + rid + ".");
     }
 
+    Page page = this.allocator.fetchPage(rid.getPageNum());
+    int entrySize = this.schema.getEntrySize();
 
+    int offset = this.pageHeaderSize + (entrySize * rid.getSlotNumber());
+    byte[] bytes = page.readBytes(offset, entrySize);
 
-    int pageNum = rid.getPageNum();
-    int slotNumber = rid.getSlotNumber();
-    int offset = this.pageHeaderSize + (slotNumber * this.schema.getEntrySize());
-    Page page = this.allocator.fetchPage(pageNum);
-
-    byte[] pageBytes = page.readBytes(offset, this.schema.getEntrySize());
-    return this.schema.decode(pageBytes);
-
+    return this.schema.decode(bytes);
   }
 
   /**
@@ -290,39 +284,51 @@ public class Table implements Iterable<Record>, Closeable {
    *         if the values do not correspond to the schema of this table
    */
   public Record updateRecord(List<DataType> values, RecordID rid) throws DatabaseException {
-//    TODO: Implement Me!!
-        Record record = null;
-      if (!checkRecordIDValidity(rid)) {
-          throw new DatabaseException("Something went wrong");
-      }
-      try {
-          record = this.schema.verify(values);
-      } catch (Exception e){
-          throw new DatabaseException("Invalid record");
-      }
+    if (!this.checkRecordIDValidity(rid)) {
+      throw new DatabaseException("Invalid RecordID " + rid + ".");
+    }
 
+    Record record;
+    try {
+      record = this.schema.verify(values);
+    } catch (SchemaException se) {
+      throw new DatabaseException(se.getMessage());
+    }
 
-      int pageNum = rid.getPageNum();
-      int slotnNum = rid.getSlotNumber();
-      Page page = this.allocator.fetchPage(pageNum);
-      byte[] encoded = this.schema.encode(record);
-      Record oldRecord = this.getRecord(rid);
+    Page page = this.allocator.fetchPage(rid.getPageNum());
+    int entrySize = this.schema.getEntrySize();
 
-      int position = this.schema.getEntrySize() * slotnNum + this.pageHeaderSize;
+    int offset = this.pageHeaderSize + (entrySize * rid.getSlotNumber());
 
-      page.readBytes();
-      page.writeBytes(position, this.schema.getEntrySize(), encoded);
+    Record oldRecord = this.schema.decode(page.readBytes(offset, entrySize));
 
-      return oldRecord;
+    byte[] bytes = this.schema.encode(record);
+
+    page.writeBytes(offset, bytes.length, bytes);
+
+    this.stats.removeRecord(oldRecord);
+    this.stats.addRecord(record);
+
+    return oldRecord;
   }
 
   public int getNumEntriesPerPage() {
     return this.numEntriesPerPage;
   }
 
+  public int getNumDataPages() {
+    return this.allocator.getNumPages() - 1;
+  }
+
+  public long getNumRecords() {
+    return this.numRecords;
+  }
+
   public Schema getSchema() {
     return this.schema;
   }
+
+  public TableStats getStats() { return this.stats; }
 
   /**
    * Check whether a RecordID is valid or not. That is, check to see if the slot
@@ -333,37 +339,33 @@ public class Table implements Iterable<Record>, Closeable {
    * @return true if rid corresponds to a valid record, otherwise false
    * @throws DatabaseException if rid does not reference an existing data page slot
    */
-    private boolean checkRecordIDValidity(RecordID rid) throws DatabaseException {
-        // if header
-        try {
-          int slotNumber = rid.getSlotNumber();
-          int pageNum = rid.getPageNum();
-
-          if (slotNumber <= this.getNumEntriesPerPage()) {
-            Page page = this.allocator.fetchPage(pageNum);
-            byte[] header = this.readPageHeader(page);
-
-            int byteOffset = slotNumber / 8;
-            int bitOffset = 7 - (slotNumber % 8);
-            byte mask = (byte) (1 << bitOffset);
-            byte res = (byte) (header[byteOffset] & mask);
-
-            if (res ==  (byte) 0) {
-              return false;
-            } else {
-              return true;
-            }
-
-          } else {
-            throw new DatabaseException("No");
-          }
-
-        } catch (PageException e) {
-          throw new DatabaseException("Not a valid record");
-        }
-
-
+  private boolean checkRecordIDValidity(RecordID rid) throws DatabaseException {
+    if (rid.getPageNum() == 0) {
+      throw new DatabaseException("Page " + rid.getPageNum() + " is reserved for table header" + this.tableName + ".");
     }
+
+    Page page;
+    try {
+      page = this.allocator.fetchPage(rid.getPageNum());
+    } catch (PageException pe) {
+      throw new DatabaseException("Page " + rid.getPageNum() + " is not valid in Table " + this.tableName + ".");
+    }
+
+    byte[] header = this.readPageHeader(page);
+    int slotNum = rid.getSlotNumber();
+
+    if (slotNum >= this.numEntriesPerPage) {
+      throw new DatabaseException("Entry Number is out of bounds of Page. Number of Entries per Page: " + this.numEntriesPerPage + " Requested: " + slotNum);
+    }
+
+    int byteOffset = slotNum / 8;
+    int bitOffset = 7 - (slotNum % 8);
+    byte mask = (byte) (1 << bitOffset);
+
+    byte value = (byte) (header[byteOffset] & mask);
+
+    return value != 0;
+  }
 
   /**
    * Based on the Schema known to this table, calculate the number of record
@@ -375,19 +377,9 @@ public class Table implements Iterable<Record>, Closeable {
    * Should set this.pageHeaderSize and this.numEntriesPerPage.
    */
   private void setEntryCounts() {
-    this.numEntriesPerPage = Page.pageSize / (this.schema.getEntrySize() + 1/8);
-
-    if (this.numEntriesPerPage % 8 != 0){
-        this.numEntriesPerPage = this.numEntriesPerPage - (this.numEntriesPerPage % 8);
-    }
-
-    while (this.numEntriesPerPage*this.schema.getEntrySize() + (this.numEntriesPerPage/8) > Page.pageSize){
-        this.numEntriesPerPage = this.numEntriesPerPage - 8;
-    }
-    this.pageHeaderSize = this.numEntriesPerPage / 8;
-
-
-    }
+    this.pageHeaderSize = ((Page.pageSize * 8) / (1 + 8 * this.schema.getEntrySize())) / 8;
+    this.numEntriesPerPage = this.pageHeaderSize * 8;
+  }
 
   /**
    * Checks if there is any free space on the given page.
@@ -463,14 +455,10 @@ public class Table implements Iterable<Record>, Closeable {
     }
   }
 
-  public long numRecords() {
-    return this.numRecords;
-  }
-
   /**
    * Utility method to read the header page of the table.
    */
-  private byte[] readHeaderPage() {
+  private void readHeaderPage() {
     int numBytesRead = 0;
     Page headerPage = this.allocator.fetchPage(0);
 
@@ -518,7 +506,6 @@ public class Table implements Iterable<Record>, Closeable {
 
     this.schema = new Schema(fieldNames, fieldTypes);
 
-    return new byte[0];
   }
 
   /**
@@ -528,7 +515,6 @@ public class Table implements Iterable<Record>, Closeable {
    * @param slotNum the header slot to modify
    * @param value the value of the bit to write (should either be 0 or 1)
    */
-      // this.writeBitToHeader(page, freeSlotNumber, 1);
   private void writeBitToHeader(Page page, int slotNum, byte value) {
     byte[] header = this.readPageHeader(page);
     int byteOffset = slotNum / 8;
@@ -554,28 +540,39 @@ public class Table implements Iterable<Record>, Closeable {
    * @param page the page to read from
    * @return a byte[] with the slot header
    */
-  private byte[] readPageHeader(Page page) {
+  public byte[] readPageHeader(Page page) {
     return page.readBytes(0, this.pageHeaderSize);
   }
+
+  public int getPageHeaderSize() {
+    return this.pageHeaderSize;
+  }
+
+  public int getEntrySize()  {
+    return this.schema.getEntrySize();
+  }
+
+  public int getNumPages() { return this.allocator.getNumPages(); }
 
   /**
    * An implementation of Iterator that provides an iterator interface over all
    * of the records in this table.
    */
   private class TableIterator implements Iterator<Record> {
-      int cursor;
-      int recordNum;
-      int pageNum;
-      Page currentPage;
-      Iterator<Page> pIter;
+    private Iterator<Page> pageIter;
+    private Page currPage = null;
+    private byte[] currHeader;
+    private int entryNum;
+    private long recordCount;
 
     public TableIterator() {
-      this.cursor = 0;
-      this.recordNum = 0;
-      this.pageNum = 1;
-      this.pIter = Table.this.allocator.iterator();
-      this.currentPage = null;
-      if (this.pIter.hasNext()) {this.pIter.next();}
+      this.entryNum = 0;
+      this.pageIter = Table.this.allocator.iterator();
+      assert(this.pageIter.next().getPageNum() == 0);
+      if (this.pageIter.hasNext()) {
+        this.currPage = this.pageIter.next();
+        currHeader = Table.this.readPageHeader(this.currPage);
+      }
     }
 
     /**
@@ -584,7 +581,7 @@ public class Table implements Iterable<Record>, Closeable {
      * @return true if this iterator has another record to yield, otherwise false
      */
     public boolean hasNext() {
-        return this.recordNum < Table.this.numRecords;
+      return (this.currPage != null) && this.recordCount < Table.this.numRecords;
     }
 
     /**
@@ -594,42 +591,40 @@ public class Table implements Iterable<Record>, Closeable {
      * @throws NoSuchElementException if there are no more Records to yield
      */
     public Record next() {
+      while (this.hasNext()) {
+        while (this.entryNum < Table.this.numEntriesPerPage) {
+          byte b = currHeader[this.entryNum/8];
+          int bitOffset = 7 - (this.entryNum % 8);
+          byte mask = (byte) (1 << bitOffset);
 
-    if (this.hasNext()) {
-      Record record = null;
-//      if (this.cursor > Table.this.numEntriesPerPage - 1) {
-//        if (this.pIter.hasNext()) {
-////          this.currentPage = this.pIter.next();
-//          this.pageNum++;
-//          this.cursor = 0;
-//        } else {
-//          return null;
-//        }
-//      }
-      while (record == null) {
-        try {
-          if (this.cursor > Table.this.numEntriesPerPage - 1) {
-            if (this.pIter.hasNext()) {
-//              this.currentPage = this.pIter.next();
-              this.pageNum++;
-              this.cursor = 0;
-            }
+          byte value = (byte) (b & mask);
+          if (value != 0) {
+            int entrySize = Table.this.schema.getEntrySize();
+
+            int offset = Table.this.pageHeaderSize + (entrySize * entryNum);
+            byte[] bytes = this.currPage.readBytes(offset, entrySize);
+
+            Record toRtn = Table.this.schema.decode(bytes);
+            this.recordCount++;
+            this.entryNum++;
+            return toRtn;
           }
-          RecordID rid = new RecordID(this.pageNum, this.cursor);
-          record = Table.this.getRecord(rid);
-          this.cursor++;
-        } catch (Exception e) {
-            cursor++;
+
+          this.entryNum++;
+        }
+
+        if (this.hasNext()) {
+          this.entryNum = 0;
+          this.currPage = this.pageIter.next();
+          currHeader = Table.this.readPageHeader(this.currPage);
         }
       }
-      this.recordNum++;
-      return record;
-    }
-    return null;
-  }
 
-  public void remove() {
-    throw new UnsupportedOperationException();
+      throw new NoSuchElementException();
+    }
+
+    public void remove() {
+      throw new UnsupportedOperationException();
+    }
   }
-}
 }

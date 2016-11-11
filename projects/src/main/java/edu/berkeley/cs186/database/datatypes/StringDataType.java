@@ -78,7 +78,12 @@ public class StringDataType extends DataType {
     StringDataType other = (StringDataType) obj;
     return this.getString().equals(other.getString());
   }
-  
+
+  @Override
+  public int hashCode() {
+    return this.getString().hashCode();
+  }
+
   @Override
   public int compareTo(Object obj) {
     if (this.getClass() != obj.getClass()) {

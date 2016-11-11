@@ -43,22 +43,24 @@ public class Schema {
    * @throws SchemaException if the values specified don't conform to this Schema
    */
   public Record verify(List<DataType> values) throws SchemaException {
-    //TODO: Implement Me!!
+    if (values.size() != this.fieldTypes.size()) {
+      throw new SchemaException("Different numbers of fields specified.");
+    }
 
-    List<DataType> lst = this.getFieldTypes();
-    if  (lst.size() == values.size()) {
-        for (int i = 0; i < values.size(); i++) {
-            if (values.get(i).type() != lst.get(i).type() || values.get(i).getSize() != lst.get(i).getSize()) {
-                throw new SchemaException("Size or Type Mismatch");
-            }
-        }
-    } else {
-        throw new SchemaException("Lengths not equal");
+    for (int i = 0; i < values.size(); i++) {
+      DataType valueType = values.get(i);
+      DataType fieldType = this.fieldTypes.get(i);
+
+      if (!(valueType.type().equals(fieldType.type()))) {
+        throw new SchemaException("Field " + i + " is " + valueType.type() + " instead of " + fieldType.type() + ".");
+      }
+
+      if (valueType.getSize() != fieldType.getSize()) {
+        throw new SchemaException("Field " + i + " is " + valueType.getSize() + " bytes instead of " + fieldType.getString() + " bytes.");
+      }
     }
 
     return new Record(values);
-
-
   }
 
   /**
@@ -71,15 +73,13 @@ public class Schema {
    * @return the encoded record as a byte[]
    */
   public byte[] encode(Record record) {
-    //TODO: Implement Me!!
-    ByteBuffer buffer = ByteBuffer.allocate(this.getEntrySize());
-    List<DataType> vals = record.getValues();
+    ByteBuffer byteBuffer = ByteBuffer.allocate(this.size);
 
-    for (DataType dt : vals) {
-        buffer.put(dt.getBytes());   
+    for (DataType value : record.getValues()) {
+      byteBuffer.put(value.getBytes());
     }
 
-    return buffer.array();
+    return byteBuffer.array();
   }
 
   /**
@@ -90,36 +90,30 @@ public class Schema {
    * @return the decoded Record
    */
   public Record decode(byte[] input) {
-    //TODO: Implement Me!!
+    int offset = 0;
 
-    List<DataType> encoded = new ArrayList<DataType>();
-    ByteBuffer buf = ByteBuffer.wrap(input);
+    List<DataType> values = new ArrayList<DataType>();
+    for (DataType field : fieldTypes) {
+      byte[] fieldBytes = Arrays.copyOfRange(input, offset, offset + field.getSize());
+      offset += field.getSize();
 
-    for (DataType dt : this.getFieldTypes()) {
-        int len = dt.getSize();
-        byte[] intermediate = new byte[len];
-        buf.get(intermediate, 0, len);
-
-        if (len == 4) {
-            if (dt.type() == DataType.Types.FLOAT) {
-                FloatDataType data = new FloatDataType(intermediate);    
-                encoded.add(data);
-            } else {
-                IntDataType data = new IntDataType(intermediate);
-                encoded.add(data);
-            }
-
-        } else if (len == 1) {
-            BoolDataType bool = new BoolDataType(intermediate);
-            encoded.add(bool);
-        } else {
-            StringDataType str = new StringDataType(intermediate);
-            encoded.add(str);
-        }
+      switch (field.type()) {
+        case STRING:
+          values.add(new StringDataType(fieldBytes));
+          break;
+        case INT:
+          values.add(new IntDataType(fieldBytes));
+          break;
+        case FLOAT:
+          values.add(new FloatDataType(fieldBytes));
+          break;
+        case BOOL:
+          values.add(new BoolDataType(fieldBytes));
+          break;
+      }
     }
 
-    return new Record(encoded);
-
+    return new Record(values);
   }
 
   public int getEntrySize() {

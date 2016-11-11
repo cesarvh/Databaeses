@@ -2,10 +2,7 @@ package edu.berkeley.cs186.database.index;
 
 import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.io.Page;
-//import org.relaxng.datatype.Datatype;
 
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 /**
@@ -45,94 +42,28 @@ public class InnerNode extends BPlusNode {
   public void setFirstChild(int val) {
     getPage().writeInt(5, val);
   }
+  
+  public int findChildFromKey(DataType key) {
+    int keyPage = getFirstChild();
+    List<BEntry> entries = getAllValidEntries();
+    for (BEntry ent : entries) {
+      if (key.compareTo(ent.getKey()) < 0) {
+        break;
+      }
+      keyPage = ent.getPageNum();
+    }
+    return keyPage;
+  }
 
   /**
    * See BPlusNode#locateLeaf documentation.
    */
   @Override
   public LeafNode locateLeaf(DataType key, boolean findFirst) {
-
-      List<BEntry> entries = this.getAllValidEntries();
-      BEntry ret;
-      int first =key.compareTo(entries.get(0).getKey());
-      int last = key.compareTo(entries.get(entries.size() - 1).getKey());
-
-
-      if (first == -1) {
-          return BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild()).locateLeaf(key, findFirst);
-      }
-
-      if (findFirst) {
-          if ((first == last) || (first == 0 && last == -1)) {
-              return BPlusNode.getBPlusNode(this.getTree(), this.getFirstChild()).locateLeaf(key, findFirst);
-          }
-
-          else if ((first == 1 && last == 0) || (first == 1 && last == -1)) {
-              ret = findFirstOrLast(entries, key, true);
-              return BPlusNode.getBPlusNode(this.getTree(), ret.getPageNum()).locateLeaf(key, findFirst);
-          }
-
-
-      } else {
-          if ((first == last) || (first == 1 && last == 0)) { // order doesnt matter
-              return BPlusNode.getBPlusNode(this.getTree(), entries.get(entries.size() - 1).getPageNum()).locateLeaf(key, findFirst);
-          }
-          else if ((first == 1 && last == -1) || (first  == 0 && last == -1)) {
-              ret = findFirstOrLast(entries, key, false);
-              return BPlusNode.getBPlusNode(this.getTree(), ret.getPageNum()).locateLeaf(key, findFirst);
-          }
-      }
-      return null;
-
-
+    int childPage = findChildFromKey(key);
+    BPlusNode child = getBPlusNode(getTree(), childPage);
+    return child.locateLeaf(key, findFirst);
   }
-
-
-
-    public BEntry findFirstOrLast(List<BEntry> entries, DataType key, boolean findFirst) {
-        BEntry currentEntry;
-        DataType currentKey;
-
-        List<DataType> keys = new ArrayList<DataType>();
-
-        if (findFirst) {
-            for (int i = 0; i < entries.size(); i++) {
-                currentEntry = entries.get(i);
-                currentKey = currentEntry.getKey();
-                if (key.compareTo(currentKey) == 0) {
-                    return currentEntry;
-                }
-            }
-        } else {
-            for (int i = entries.size() - 1; i > -1; i--) {
-                currentEntry = entries.get(i);
-                currentKey = currentEntry.getKey();
-                if (key.compareTo(currentKey) == 0) {
-                    return currentEntry;
-                }
-            }
-        }
-
-        // WHAT IF we don't find the key inside?
-        for (int i = 0; i < entries.size(); i++) {
-            keys.add(entries.get(i).getKey());
-        }
-
-        if (!keys.contains(key)) {
-            for (int i = 0, j = 1; j < entries.size(); i++, j++) {
-                BEntry pointerEntry = entries.get(i);
-                BEntry lookaheadEntry = entries.get(j);
-                DataType pointerKey = pointerEntry.getKey();
-                DataType lookaheadKey = lookaheadEntry.getKey();
-
-                if (key.compareTo(pointerKey) == 1 && key.compareTo(lookaheadKey) == -1) {
-                    return pointerEntry;
-                }
-
-            }
-        }
-        return null;
-    }
 
   /**
    * Splits this node and pushes up the middle key. Note that we split this node
@@ -143,66 +74,48 @@ public class InnerNode extends BPlusNode {
    */
   @Override
   public void splitNode() {
-      BPlusTree tree = this.getTree();
+    InnerNode right = new InnerNode(getTree());
+    int leftPageNum = this.getPageNum();
+    List<BEntry> allEntries = this.getAllValidEntries();
+    int len = allEntries.size();
 
-      List<BEntry> entries = this.getAllValidEntries();
-      List<BEntry> rightEntries = new ArrayList<BEntry>();
-      List<BEntry> leftEntries = new ArrayList<BEntry>();
+    List<BEntry> leftEntries = allEntries.subList(0, len/2);
+    BEntry middle = allEntries.get(len/2);
+    List<BEntry> rightEntries = allEntries.subList(len/2 + 1, len);
+    
+    this.overwriteBNodeEntries(leftEntries);
+    
+    for (BEntry ent : leftEntries) {
+      int entPageNum = ent.getPageNum();
+      getBPlusNode(getTree(), entPageNum).setParent(leftPageNum);
+    }
+    
+    right.overwriteBNodeEntries(rightEntries);
+    
+    for (BEntry ent : rightEntries) {
+      int entPageNum = ent.getPageNum();
+      getBPlusNode(getTree(), entPageNum).setParent(right.getPageNum());
+    }
 
-      InnerNode rightChild = new InnerNode(tree); // and this too
-      InnerNode newRoot;// = new InnerNode(tree);
-      BEntry middleEntry = entries.get(entries.size()/ 2);
-
-      int i = 0;
-      for (; i < entries.size() / 2; i++) {
-          leftEntries.add(entries.get(i));
-      }
-      i ++;
-
-      for (; i < entries.size(); i++) {
-          BPlusNode currentNode = BPlusNode.getBPlusNode(this.getTree(), entries.get(i).getPageNum());
-          currentNode.setParent(rightChild.getPageNum());
-          rightEntries.add(entries.get(i));
-
-      }
-
-      if (this.isRoot()) {
-          newRoot = new InnerNode(this.getTree());
-          newRoot.setFirstChild(this.getPageNum());
-          this.getTree().updateRoot(newRoot.getPageNum());
-      } else {
-          newRoot = (InnerNode)BPlusNode.getBPlusNode(this.getTree(),this.getParent());
-      }
-
-
-      rightChild.overwriteBNodeEntries(rightEntries);
-      rightChild.setParent(newRoot.getPageNum());
-      rightChild.setFirstChild(middleEntry.getPageNum());
-
-      this.overwriteBNodeEntries(leftEntries);
-      this.setParent(newRoot.getPageNum());
-
-      InnerEntry newInnerEntry = new InnerEntry(middleEntry.getKey(), rightChild.getPageNum());
-
-//      newRoot.insertBEntry(newInnerEntry);
-
-      List<BEntry> temp = rightChild.getAllValidEntries();
-      for (int j = 0; i < temp.size(); j++) {
-          BPlusNode currentNode = BPlusNode.getBPlusNode(this.getTree(), temp.get(j).getPageNum());
-          currentNode.setParent(rightChild.getPageNum());
-
-      }
-      newRoot.insertBEntry(newInnerEntry);
-
-
-      // ********** UU    UU CCCCCCCCCCCC KK       KK     TTTTTTTTTTT HH     HH  IIIIIIIII      SSSSS
-      // ********** UU    UU CCCCCCCCCCC  KK     KK           TT      HH     HH     II         SS
-      // **         UU    UU CC           KK    KK            TT      HH     HH     II       SS
-      // **         UU    UU CC           KK  KK              TT      HH     HH     II       SS
-      // ********** UU    UU CC           KKKKK               TT      HHHHHHHHH     II        SS
-      // **         UU    UU CC           KK   KK             TT      HH     HH     II           SS
-      // **         UU    UU CC           KK    KK            TT      HH     HH     II            SS
-      // **         UU    UU CCCCCCCCCCCC KK     KK           TT      HH     HH     II           SS
-      // **          UUUUUU  CCCCCCCCCCCC KK      KK          TT      HH     HH  IIIIIIIII  SSSSS
+    right.setFirstChild(middle.getPageNum());
+    
+    int leftPageParentNum;
+    InnerNode parNode;
+    
+    if (isRoot()) {
+      parNode = new InnerNode(getTree());
+      leftPageParentNum = parNode.getPageNum();
+      parNode.setFirstChild(leftPageNum);
+      this.setParent(leftPageParentNum);
+      getTree().updateRoot(leftPageParentNum);
+    } else {
+      leftPageParentNum = this.getParent();
+      parNode = new InnerNode(getTree(), leftPageParentNum);
+    }
+    
+    right.setParent(leftPageParentNum);
+    
+    InnerEntry inEnt = new InnerEntry(middle.getKey(), right.getPageNum());
+    parNode.insertBEntry(inEnt); 
   }
 }

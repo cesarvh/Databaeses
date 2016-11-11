@@ -5,8 +5,10 @@ import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.rules.TemporaryFolder;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.Timeout;
 
 import java.io.File;
 import java.io.IOException;
@@ -26,6 +28,7 @@ import edu.berkeley.cs186.database.query.QueryPlan;
 import edu.berkeley.cs186.database.query.QueryPlanException;
 import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.Schema;
+
 import static org.junit.Assert.*;
 
 public class TestDatabaseQueries {
@@ -34,6 +37,9 @@ public class TestDatabaseQueries {
 
   @ClassRule
   public static TemporaryFolder tempFolder = new TemporaryFolder();
+
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
 
   @BeforeClass
   public static void setupClass() throws DatabaseException, IOException {

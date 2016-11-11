@@ -5,8 +5,12 @@ import edu.berkeley.cs186.database.StudentTest;
 import static org.junit.Assert.*;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.Rule;
+import org.junit.rules.Timeout;
 
 public class TestStringDataType {
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(1); // 1 seconds max per method tested
  
  	@Test
   public void TestStringDataTypeConstructor() {

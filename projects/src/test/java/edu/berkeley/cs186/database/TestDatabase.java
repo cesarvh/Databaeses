@@ -11,6 +11,7 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 import org.junit.Rule;
+import org.junit.rules.Timeout;
 import org.junit.rules.TemporaryFolder;
 import org.junit.experimental.categories.Category;
 
@@ -28,6 +29,9 @@ public class TestDatabase {
 
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
+  
+  @Rule
+  public Timeout globalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
 
   @Before
   public void beforeEach() throws Exception {
