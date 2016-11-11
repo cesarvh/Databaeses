@@ -78,13 +78,76 @@ public class PNLJOperator extends JoinOperator {
               }
           }
 
+          this.leftIterator = PNLJOperator.this.getPageIterator(leftTableName);
+          this.leftPage = this.leftIterator.next();
+          this.rightIterator = PNLJOperator.this.getPageIterator(rightTableName);
+          this.rightPage = this.rightIterator.next();
+
+
+
           // TODO: implement me!
 
       }
+    /*
+
+    OUTER join INNER
+    O = left
+    I = right
+    foreach page bo in O do
+      for each page bi in I do
+        for each record o in bo do
+        for each record i in bi do
+        if theta() then add <r, s> 
+
+    outer on y axis
+    inner on x asis\
+      |--------------->
+      |   |   |
+      |--------------->
+    O |   |   |
+      |--------------->
+      |___|___|_________
+            I
+    */
 
     public boolean hasNext() {
       // TODO: implement me!
+
+      while true {
+
+        // for each record in page
+        while (this.leftIterator.hasNext()) {
+          if (!this.leftPage.hasNext()) { // we iterate through this page ONLY once.
+            this.leftPage = this.leftIterator.next();
+            this.rightIterator = PNLJOperator.this.getPageIterator(rightTableName);
+            this.rightPage = this.rightIterator.next();
+
+          }
+
+          while (this.rightIterator.hasNext()) { // now we iterate through this page
+            if (this.rightIterator.hasNext()) {
+              this.rightIterator = this.rightIterator.next();
+            }
+
+
+          }
+
+        }
+
+
+
+      }
+        
+
       return false;
+    }
+
+    public Record retrieveNextLeftRecord() {
+      return null;
+    }
+
+    public Record retrieveNextRightRecord() {
+      return null;
     }
 
 
