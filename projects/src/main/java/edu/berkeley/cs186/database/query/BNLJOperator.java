@@ -152,9 +152,9 @@ public class BNLJOperator extends JoinOperator {
                 }
 
                 // now the stuff thats meant to happen
-                this.leftRecord = retrieveNextLeftRecord();
-                this.rightRecord = retrieveNextRightRecord();
-                this.currRightNum++;
+//                this.leftRecord = retrieveNextLeftRecord();
+//                this.rightRecord = retrieveNextRightRecord();
+//                this.currRightNum++;
 
 
                 // Case 1
@@ -215,9 +215,9 @@ public class BNLJOperator extends JoinOperator {
 
 
 //                // now the stuff thats meant to happen
-//                this.leftRecord = retrieveNextLeftRecord();
-//                this.rightRecord = retrieveNextRightRecord();
-//                this.currRightNum++;
+                this.leftRecord = retrieveNextLeftRecord();
+                this.rightRecord = retrieveNextRightRecord();
+                this.currRightNum++;
 
                 if (this.rightRecord == null) {
                     continue;
