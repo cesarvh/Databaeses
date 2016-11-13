@@ -168,6 +168,8 @@ public class PNLJOperator extends JoinOperator {
             try{
                 while(true) {
                     while (this.currLeftNum < PNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
+                        if (leftPage.getPageNum() == 0) { this.leftPage = this.leftIterator.next(); }
+
                         byte[] leftHeader = PNLJOperator.this.getPageHeader(rightTableName,this.leftPage);
                         byte b = leftHeader[this.currLeftNum/8];
                         int bitOffset = 7 - (this.currLeftNum % 8);
