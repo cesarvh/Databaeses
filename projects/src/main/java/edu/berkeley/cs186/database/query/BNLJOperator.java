@@ -56,54 +56,72 @@ public class BNLJOperator extends JoinOperator {
      private int currLeftNum;
      private int currRightNum;
      private int bufferPointer;
+     private  int bufferFill;
+      public BNLJIterator() throws QueryPlanException, DatabaseException {
+          if (BNLJOperator.this.getLeftSource().isSequentialScan()) {
+              this.leftTableName = ((SequentialScanOperator)BNLJOperator.this.getLeftSource()).getTableName();
+          } else {
+              this.leftTableName = "Temp" + BNLJOperator.this.getJoinType().toString() + "Operator" + BNLJOperator.this.getLeftColumnName() + "Left";
+              BNLJOperator.this.createTempTable(BNLJOperator.this.getLeftSource().getOutputSchema(), leftTableName);
+              Iterator<Record> leftIter = BNLJOperator.this.getLeftSource().iterator();
+              while (leftIter.hasNext()) {
+                  BNLJOperator.this.addRecord(leftTableName, leftIter.next().getValues());
+              }
+          }
+          if (BNLJOperator.this.getRightSource().isSequentialScan()) {
+              this.rightTableName = ((SequentialScanOperator)BNLJOperator.this.getRightSource()).getTableName();
+          } else {
+              this.rightTableName = "Temp" + BNLJOperator.this.getJoinType().toString() + "Operator" + BNLJOperator.this.getRightColumnName() + "Right";
+              BNLJOperator.this.createTempTable(BNLJOperator.this.getRightSource().getOutputSchema(), rightTableName);
+              Iterator<Record> rightIter = BNLJOperator.this.getRightSource().iterator();
+              while (rightIter.hasNext()) {
+                  BNLJOperator.this.addRecord(rightTableName, rightIter.next().getValues());
+              }
+          }
 
-    public BNLJIterator() throws QueryPlanException, DatabaseException {
-      if (BNLJOperator.this.getLeftSource().isSequentialScan()) {
-        this.leftTableName = ((SequentialScanOperator)BNLJOperator.this.getLeftSource()).getTableName();
-      } else {
-        this.leftTableName = "Temp" + BNLJOperator.this.getJoinType().toString() + "Operator" + BNLJOperator.this.getLeftColumnName() + "Left";
-        BNLJOperator.this.createTempTable(BNLJOperator.this.getLeftSource().getOutputSchema(), leftTableName);
-        Iterator<Record> leftIter = BNLJOperator.this.getLeftSource().iterator();
-        while (leftIter.hasNext()) {
-          BNLJOperator.this.addRecord(leftTableName, leftIter.next().getValues());
-        }
-      }
-      if (BNLJOperator.this.getRightSource().isSequentialScan()) {
-        this.rightTableName = ((SequentialScanOperator)BNLJOperator.this.getRightSource()).getTableName();
-      } else {
-        this.rightTableName = "Temp" + BNLJOperator.this.getJoinType().toString() + "Operator" + BNLJOperator.this.getRightColumnName() + "Right";
-        BNLJOperator.this.createTempTable(BNLJOperator.this.getRightSource().getOutputSchema(), rightTableName);
-        Iterator<Record> rightIter = BNLJOperator.this.getRightSource().iterator();
-        while (rightIter.hasNext()) {
-          BNLJOperator.this.addRecord(rightTableName, rightIter.next().getValues());
-        }
-      }
-        this.numBuffersAvail = BNLJOperator.this.numBuffers; // - 2;
-        this.leftIterator = BNLJOperator.this.getPageIterator(leftTableName);
-        this.rightIterator = BNLJOperator.this.getPageIterator(rightTableName);
-        this.leftPage = this.leftIterator.next();
-        this.rightPage = this.rightIterator.next();
-        this.block = new Page[numBuffersAvail];
-        this.block[0] = this.leftPage;
-        Page p;
-        for (int i = 1; i < this.numBuffersAvail; i++) {
+          // set the block, iterators and buffer counts up
+          this.numBuffersAvail = BNLJOperator.this.numBuffers - 2;
+          this.leftIterator = BNLJOperator.this.getPageIterator(leftTableName);
+          this.rightIterator = BNLJOperator.this.getPageIterator(rightTableName);
+          this.block = new Page[numBuffersAvail];
 
-            if (this.leftIterator.hasNext()) {
-                p = this.leftIterator.next();
-            } else {
-                break;
-            }
-            this.block[i] = p;
-        }
+
+          // Set up the initial pointers
+          this.currLeftNum = 0;
+          this.currRightNum = 0;
+          this.bufferPointer = 0;
+          this.bufferFill = 0;
+
+          // fill in the block
+          Page p;
+          for (int i = 0; i < this.numBuffersAvail; i++) {
+
+              if (this.leftIterator.hasNext()) {
+                  p = this.leftIterator.next();
+                  this.bufferFill++;
+                  System.out.println(this.bufferFill);
+              } else {
+                  break;
+              }
+              this.block[i] = p;
+          }
+
+          // get the intial pages
+          this.leftPage = this.block[this.bufferPointer];
+          this.bufferPointer++;
+
+          this.rightPage = this.rightIterator.next();
+
+
+
 //        this.leftPage = block[0];
 
-        this.currLeftNum = 0;
-        this.currRightNum = 0;
-        this.bufferPointer = 0;
 
-      // TODO: implement me!
 
-    }
+          // TODO: implement me!
+
+      }
+
 
     /**
      * Checks if there are more record(s) to yield
@@ -254,8 +272,16 @@ public class BNLJOperator extends JoinOperator {
             while(true) {
               while (this.currLeftNum < BNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
                   if (leftPage.getPageNum() == 0) {
-                      this.bufferPointer += 1;
-                      this.leftPage = block[this.bufferPointer];
+                      if (this.bufferPointer > this.bufferFill - 1) {
+                          this.bufferPointer = 0;
+                          this.block[bufferPointer] = leftIterator.next();
+                          this.leftPage = this.block[this.bufferPointer];
+                          this.bufferPointer++;
+                      }
+                      else{
+                          this.leftPage = block[this.bufferPointer];
+                          this.bufferPointer += 1;
+                      }
                   }
 
                   byte[] leftHeader = BNLJOperator.this.getPageHeader(rightTableName,this.leftPage);
