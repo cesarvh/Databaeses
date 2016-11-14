@@ -99,7 +99,6 @@ public class BNLJOperator extends JoinOperator {
               if (this.leftIterator.hasNext()) {
                   p = this.leftIterator.next();
                   this.bufferFill++;
-                  System.out.println(this.bufferFill);
               } else {
                   break;
               }
@@ -112,13 +111,6 @@ public class BNLJOperator extends JoinOperator {
 
           this.rightPage = this.rightIterator.next();
 
-
-
-//        this.leftPage = block[0];
-
-
-
-          // TODO: implement me!
 
       }
 
@@ -169,30 +161,23 @@ public class BNLJOperator extends JoinOperator {
                     }
                 }
 
-                // now the stuff thats meant to happen
-//                this.leftRecord = retrieveNextLeftRecord();
-//                this.rightRecord = retrieveNextRightRecord();
-//                this.currRightNum++;
+                this.leftRecord = retrieveNextLeftRecord();
 
-
-                // Case 1
                 if (this.leftRecord == null) {
+
+                    //case 1
                     if (this.currLeftNum + 1 < BNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
                         this.currLeftNum++;
                         this.currRightNum = 0;
                     }
-                }
-                // Case 2
-                if (this.leftRecord == null) {
+                    // case 2
                     if (this.bufferPointer < this.block.length) {
                         this.leftPage = this.block[bufferPointer];
                         this.bufferPointer++;
                         this.currLeftNum = 0;
                         this.currRightNum = 0; // dont switch the page, but do switch the LEFT page :)
                     }
-                }
-                // case 3
-                if (this.leftRecord == null) {
+                    // case 3
                     if (this.bufferPointer == this.block.length - 1) {
                         if (this.rightIterator.hasNext()) {
                             this.bufferPointer = 0;
@@ -202,12 +187,14 @@ public class BNLJOperator extends JoinOperator {
                         }
 
                     }
-                }
-                // case 4
-                if (this.leftRecord == null) {
-                    if (this.bufferPointer == this.block.length - 1) { // nothing else on block
+                    //case 4
+//                    if (this.bufferPointer == this.block.length - 1) { // nothing else on block
+                    else {
                         if (!this.rightIterator.hasNext()) {
                             this.leftPage = this.leftIterator.next();
+                            if (!this.leftIterator.hasNext()) {
+                                return false;
+                            }
                             for (int i = 0; i < this.numBuffersAvail; i++) {
                                 this.block[i] = this.leftPage;
                                 if (this.leftIterator.hasNext()) {
@@ -226,14 +213,12 @@ public class BNLJOperator extends JoinOperator {
 
                     }
 
+
                 }
 
 
-
-
-
 //                // now the stuff thats meant to happen
-                this.leftRecord = retrieveNextLeftRecord();
+//                this.leftRecord = retrieveNextLeftRecord();
                 this.rightRecord = retrieveNextRightRecord();
                 this.currRightNum++;
 

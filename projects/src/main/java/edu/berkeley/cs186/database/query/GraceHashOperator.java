@@ -69,7 +69,68 @@ public class GraceHashOperator extends JoinOperator {
         rightPartitions[i] = rightTableName;
       }
 
-      // TODO: implement me!
+//        while (this.sourceIterator.hasNext()) {
+//            Record record = this.sourceIterator.next();
+//            DataType groupByColumn = record.getValues().get(GroupByOperator.this.groupByColumnIndex);
+//
+//            String tableName;
+//            if (!this.hashGroupTempTables.containsKey(groupByColumn.toString())) {
+//                tableName = "Temp" + GroupByOperator.this.groupByColumn + "GroupBy" + this.hashGroupTempTables.size();
+//
+//                GroupByOperator.this.transaction.createTempTable(GroupByOperator.this.getSource().getOutputSchema(), tableName);
+//                this.hashGroupTempTables.put(groupByColumn.toString(), tableName);
+//            } else {
+//                tableName = this.hashGroupTempTables.get(groupByColumn.toString());
+//            }
+//
+//            GroupByOperator.this.transaction.addRecord(tableName, record.getValues());
+//        }
+
+        while (this.rightIterator.hasNext()) {
+            Record r = this.rightIterator.next(); // get the next record, now we will hash it
+            DataType column = r.getValues().get(GraceHashOperator.this.getRightColumnIndex());
+            int hash = column.hashCode();
+
+
+            System.out.println(rightPartitions.length);
+
+            for (int i = 0; i < rightPartitions.length; i++) {
+                System.out.println(rightPartitions[i]);
+            }
+            System.out.println("left " +  column + " and hash is " + hash + " and the bucket num is " +  hash % rightPartitions.length);
+
+
+        }
+
+        while (this.leftIterator.hasNext()) {
+            Record r = this.leftIterator.next(); // get the next record, now we will hash it
+            DataType column = r.getValues().get(GraceHashOperator.this.getRightColumnIndex());
+            int hash = column.hashCode();
+            System.out.println("right " + column + " and hash is " + hash + " and the bucket num is " +  hash % leftPartitions.length);
+        }
+
+
+        // hash right
+
+
+        // hash left
+
+
+
+        // on the first half of the algorithm, each record is hashed into its corresponding partition by being
+        // added to a temporary table that represents that partition
+        // use a datatype's hashcode and modulo operator to hash each into  a particular parition (groupByOperator)
+
+
+
+
+//      for (int i = 0; i < rightPartitions.length; i++) {
+//          System.out.println(rightPartitions[i]);
+//      }
+//        System.out.println("==============Left partitions start now=================");
+//        for (int i = 0; i < leftPartitions.length; i++) {
+//            System.out.println(leftPartitions[i]);
+//        }
 
     }
 
@@ -80,6 +141,14 @@ public class GraceHashOperator extends JoinOperator {
      */
     public boolean hasNext() {
       // TODO: implement me!
+
+
+      // on the second phase,
+      // build an in-memory hash table using a HashMap
+      // you should use the records form the left input partitions to hash and then probe the hash table using
+      // the records from the right input partitions
+
+
       return false;
     }
 
