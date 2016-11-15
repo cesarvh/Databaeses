@@ -121,6 +121,7 @@ public class PNLJOperator extends JoinOperator {
                                 this.rightIterator = PNLJOperator.this.getPageIterator(rightTableName);
                                 this.rightPage = this.rightIterator.next();
                                 this.currRightNum = 0;
+                                continue;
                             }
                         }
                     }
@@ -129,7 +130,7 @@ public class PNLJOperator extends JoinOperator {
 
                     if (this.leftRecord  == null){
 
-                        if (this.rightIterator.hasNext()){
+                        if (this.rightIterator.hasNext()) {
                             this.rightPage = this.rightIterator.next();
                             this.currLeftNum = 0;
                             this.currRightNum = 0;
@@ -141,6 +142,7 @@ public class PNLJOperator extends JoinOperator {
                                 this.currRightNum = 0;
                                 this.rightIterator = PNLJOperator.this.getPageIterator(rightTableName);
                                 this.rightPage = this.rightIterator.next();
+                                continue;
                             }
                         }
                     }
