@@ -101,7 +101,9 @@ public class PNLJOperator extends JoinOperator {
 
             while (this.leftPage != null) {
                 try {
-                    if (retrieveNextRightRecord() == null){
+//                    this.leftRecord = retrieveNextLeftRecord();
+                    this.rightRecord = retrieveNextRightRecord();
+                    if (this.rightRecord == null){
                         if (this.currLeftNum + 1 < PNLJOperator.this.getNumEntriesPerPage(leftTableName)){
                             this.currLeftNum++;
                             this.currRightNum = 0;
@@ -122,7 +124,10 @@ public class PNLJOperator extends JoinOperator {
                             }
                         }
                     }
-                    if (retrieveNextLeftRecord() == null){
+
+                    this.leftRecord = retrieveNextLeftRecord();
+
+                    if (this.leftRecord  == null){
 
                         if (this.rightIterator.hasNext()){
                             this.rightPage = this.rightIterator.next();
@@ -146,7 +151,7 @@ public class PNLJOperator extends JoinOperator {
                     if (this.rightRecord == null) {
                         continue;
                     }
-                    
+
                     DataType leftJoinValue = this.leftRecord.getValues().get(PNLJOperator.this.getLeftColumnIndex());
                     DataType rightJoinValue = rightRecord.getValues().get(PNLJOperator.this.getRightColumnIndex());
                     if (leftJoinValue.equals(rightJoinValue)) {
@@ -168,7 +173,9 @@ public class PNLJOperator extends JoinOperator {
             try{
                 while(true) {
                     while (this.currLeftNum < PNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
-                        if (leftPage.getPageNum() == 0) { this.leftPage = this.leftIterator.next(); }
+                        if (leftPage.getPageNum() == 0) {
+                            this.leftPage = this.leftIterator.next();
+                        }
 
                         byte[] leftHeader = PNLJOperator.this.getPageHeader(rightTableName,this.leftPage);
                         byte b = leftHeader[this.currLeftNum/8];
@@ -186,7 +193,7 @@ public class PNLJOperator extends JoinOperator {
                     }
                     return null;
                 }
-            } catch (Exception e){
+            } catch (Exception e) {
                 return null;
             }
         }
@@ -194,7 +201,9 @@ public class PNLJOperator extends JoinOperator {
             try{
                 while (true) {
                     while (this.currRightNum < PNLJOperator.this.getNumEntriesPerPage(rightTableName)) {
-                        if (rightPage.getPageNum() == 0) { this.rightPage = this.rightIterator.next(); }
+                        if (rightPage.getPageNum() == 0) {
+                            this.rightPage = this.rightIterator.next();
+                        }
                         byte[] rightHeader = PNLJOperator.this.getPageHeader(rightTableName,this.rightPage);
                         byte b = rightHeader[this.currRightNum / 8];
                         int bitOffset = 7 - (this.currRightNum % 8);
