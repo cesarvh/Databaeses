@@ -54,51 +54,28 @@ public class GraceHashOperator extends JoinOperator {
 
 
     public GraceHashIterator() throws QueryPlanException, DatabaseException {
-      this.leftIterator = getLeftSource().iterator();
-      this.rightIterator = getRightSource().iterator();
-      leftPartitions = new String[numBuffers - 1];
-      rightPartitions = new String[numBuffers - 1];
-      String leftTableName;
-      String rightTableName;
-      for (int i = 0; i < numBuffers - 1; i++) {
-        leftTableName = "Temp HashJoin Left Partition " + Integer.toString(i);
-        rightTableName = "Temp HashJoin Right Partition " + Integer.toString(i);
-        GraceHashOperator.this.createTempTable(getLeftSource().getOutputSchema(), leftTableName);
-        GraceHashOperator.this.createTempTable(getRightSource().getOutputSchema(), rightTableName);
-        leftPartitions[i] = leftTableName;
-        rightPartitions[i] = rightTableName;
-      }
-
-//        while (this.sourceIterator.hasNext()) {
-//            Record record = this.sourceIterator.next();
-//            DataType groupByColumn = record.getValues().get(GroupByOperator.this.groupByColumnIndex);
-//
-//            String tableName;
-//            if (!this.hashGroupTempTables.containsKey(groupByColumn.toString())) {
-//                tableName = "Temp" + GroupByOperator.this.groupByColumn + "GroupBy" + this.hashGroupTempTables.size();
-//
-//                GroupByOperator.this.transaction.createTempTable(GroupByOperator.this.getSource().getOutputSchema(), tableName);
-//                this.hashGroupTempTables.put(groupByColumn.toString(), tableName);
-//            } else {
-//                tableName = this.hashGroupTempTables.get(groupByColumn.toString());
-//            }
-//
-//            GroupByOperator.this.transaction.addRecord(tableName, record.getValues());
-//        }
+        this.leftIterator = getLeftSource().iterator();
+        this.rightIterator = getRightSource().iterator();
+        leftPartitions = new String[numBuffers - 1];
+        rightPartitions = new String[numBuffers - 1];
+        String leftTableName;
+        String rightTableName;
+        for (int i = 0; i < numBuffers - 1; i++) {
+            leftTableName = "Temp HashJoin Left Partition " + Integer.toString(i);
+            rightTableName = "Temp HashJoin Right Partition " + Integer.toString(i);
+            GraceHashOperator.this.createTempTable(getLeftSource().getOutputSchema(), leftTableName);
+            GraceHashOperator.this.createTempTable(getRightSource().getOutputSchema(), rightTableName);
+            leftPartitions[i] = leftTableName;
+            rightPartitions[i] = rightTableName;
+        }
 
         while (this.rightIterator.hasNext()) {
             Record r = this.rightIterator.next(); // get the next record, now we will hash it
             DataType column = r.getValues().get(GraceHashOperator.this.getRightColumnIndex());
             int hash = column.hashCode();
+            int bucket = hash % numBuffers - 1;
 
-
-            System.out.println(rightPartitions.length);
-
-            for (int i = 0; i < rightPartitions.length; i++) {
-                System.out.println(rightPartitions[i]);
-            }
-            System.out.println("left " +  column + " and hash is " + hash + " and the bucket num is " +  hash % rightPartitions.length);
-
+            GraceHashOperator.this.addRecord(rightPartitions[bucket], r.getValues());
 
         }
 
@@ -106,14 +83,11 @@ public class GraceHashOperator extends JoinOperator {
             Record r = this.leftIterator.next(); // get the next record, now we will hash it
             DataType column = r.getValues().get(GraceHashOperator.this.getRightColumnIndex());
             int hash = column.hashCode();
-            System.out.println("right " + column + " and hash is " + hash + " and the bucket num is " +  hash % leftPartitions.length);
+            int bucket = hash % numBuffers - 1;
+
+            GraceHashOperator.this.addRecord(leftPartitions[bucket], r.getValues());
         }
 
-
-        // hash right
-
-
-        // hash left
 
 
 
