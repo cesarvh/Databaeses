@@ -83,6 +83,19 @@ public class BNLJOperator extends JoinOperator {
           this.numBuffersAvail = BNLJOperator.this.numBuffers - 2;
           this.leftIterator = BNLJOperator.this.getPageIterator(leftTableName);
           this.rightIterator = BNLJOperator.this.getPageIterator(rightTableName);
+
+//          int i = -1;
+          System.out.println(this.numBuffersAvail);
+          while (this.leftIterator.hasNext()) {
+              System.out.println("Currently priting Left " + this.leftIterator.next().getPageNum());
+          }
+
+          while (this.rightIterator.hasNext()) {
+              System.out.println("Currently priting right " + this.rightIterator.next().getPageNum());
+          }
+          this.leftIterator = BNLJOperator.this.getPageIterator(leftTableName);
+          this.rightIterator = BNLJOperator.this.getPageIterator(rightTableName);
+
           this.block = new Page[numBuffersAvail];
 
 
@@ -139,62 +152,72 @@ public class BNLJOperator extends JoinOperator {
 
                 if (this.rightRecord == null) {
                     //case 1 left page has more tuples left
+//                    System.out.println(this.currLeftNum + " < " + BNLJOperator.this.getNumEntriesPerPage(leftTableName));
+//                    System.out.println((this.currLeftNum + 1) + " < " + BNLJOperator.this.getNumEntriesPerPage(leftTableName));
                     if (this.currLeftNum + 1 < BNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
                         this.currLeftNum++;
                         this.currRightNum = 0;
-                    }
-                    // case 2 o more left tuples and more left pages in buffer
-                    else if (this.bufferPointer < this.bufferFill - 1) { // means we have more pages
-                        this.leftPage = this.block[this.bufferPointer];
-                        this.bufferPointer++;
-                        this.currRightNum = 0;
-                        this.currLeftNum = 0;
-
-                    }
-                    //case 3 No more pages in the buffer but more pages in the right
-                    else if (this.bufferPointer >= this.bufferFill && this.rightIterator.hasNext()) {
-                        this.currLeftNum = 0;
-                        this.currRightNum = 0;
-                        this.bufferPointer = 0;
-                        this.leftPage = this.block[this.bufferPointer];
-                        this.bufferPointer++;
-                        this.rightPage = this.rightIterator.next();
-
-
-
-                    }
-                    // case 4: No more pages in buffer and no more right pages and more pages in leftiterator
-                    else if (this.bufferPointer >= this.bufferFill && !this.rightIterator.hasNext() && this.leftIterator.hasNext()) {
-                        this.currRightNum = 0;
-                        this.currLeftNum = 0;
-                        this.bufferPointer = 0;
-                        this.bufferFill = 0;
-                        Page p;
-                        for (int i = 0; i < this.block.length; i++) {
-                            if (this.leftIterator.hasNext()) {
-                                p = this.leftIterator.next();
-                                this.bufferFill++;
-                            } else {
-                                break;
-                            }
-                            this.block[i] = p;
-                        }
-                        this.leftPage = this.block[this.bufferPointer];
-                        this.bufferPointer++;
-                        this.rightIterator = BNLJOperator.this.getPageIterator(rightTableName);
-
                     } else {
-                        return false;
-                    }
+                        // case 2 No more left tuples and more left pages in buffer
+                        if (this.bufferPointer <= this.bufferFill - 1) { // means we have more pages
+                            this.leftPage = this.block[this.bufferPointer];
+                            this.bufferPointer++;
+                            this.currRightNum = 0;
+                            this.currLeftNum = 0;
 
+                        }
+                        //case 3 no more tuples in a page
+                        else if (this.bufferPointer >= this.bufferFill && this.rightIterator.hasNext()) {
+                            this.currLeftNum = 0;
+                            this.currRightNum = 0;
+                            this.bufferPointer = 0;
+                            this.leftPage = this.block[this.bufferPointer];
+                            this.bufferPointer++;
+                            this.rightPage = this.rightIterator.next();
+
+                        }
+                        // case 4: No more pages in buffer and no more right pages and more pages in leftiterator
+                        else if (this.bufferPointer >= this.bufferFill && !this.rightIterator.hasNext()) {
+                            if (this.leftIterator.hasNext()) {
+                                this.currRightNum = 0;
+                                this.currLeftNum = 0;
+                                this.bufferPointer = 0;
+                                this.bufferFill = 0;
+                                Page p;
+                                this.block = new Page[this.numBuffersAvail];
+                                for (int i = 0; i < this.block.length; i++) {
+                                    if (this.leftIterator.hasNext()) {
+                                        p = this.leftIterator.next();
+                                        this.bufferFill++;
+                                    } else {
+                                        break;
+                                    }
+                                    this.block[i] = p;
+                                }
+                                this.leftPage = this.block[this.bufferPointer];
+                                this.bufferPointer++;
+                                this.rightIterator = BNLJOperator.this.getPageIterator(rightTableName);
+                                this.rightPage = this.rightIterator.next();
+                                continue;
+                            } else {
+                                return false;
+                            }
+
+                        } else {
+                            return false;
+                        }
+                    }
                 }
 
 
                 this.leftRecord = retrieveNextLeftRecord();
 
+//                    System.out.println((this.currLeftNum + 1) + " < " + BNLJOperator.this.getNumEntriesPerPage(leftTableName));
 
                 if (this.leftRecord == null) {
                     // case 1:more left in the buffer
+                    System.out.println("hjfdsxbghjksdfkjhkjlghjklshljksfhljdhjgsjdkfhgkjhdjfklghdfljk");
+
                     if (this.bufferPointer < this.bufferFill - 1) {
                         this.currLeftNum = 0;
                         this.currRightNum = 0;
@@ -203,15 +226,17 @@ public class BNLJOperator extends JoinOperator {
 
                     }
 
-                    // case 2: no more left in thebuffer
+                    // case 2: no more left in the buffer
                     else if (this.bufferPointer >= this.bufferFill && this.leftIterator.hasNext()) {
                         this.currRightNum = 0;
                         this.currLeftNum = 0;
                         this.bufferPointer = 0;
                         Page p;
+                        this.block = new Page[this.numBuffersAvail];
                         for (int i = 0; i < this.block.length; i++) {
                             if (this.leftIterator.hasNext()) {
                                 p = this.leftIterator.next();
+
                                 this.bufferFill++;
                             } else {
                                 break;
@@ -229,7 +254,7 @@ public class BNLJOperator extends JoinOperator {
                 }
 //                return false;
 
-//                this.leftRecord = retrieveNextLeftRecord();
+                this.leftRecord = retrieveNextLeftRecord();
                 this.rightRecord = retrieveNextRightRecord();
                 this.currRightNum++;
 
@@ -248,6 +273,8 @@ public class BNLJOperator extends JoinOperator {
                     List<DataType> rightValues = new ArrayList<DataType>(rightRecord.getValues());
                     leftValues.addAll(rightValues);
                     this.nextRecord = new Record(leftValues);
+
+//                    System.out.println("Currently, page is " + this.rightPage + " and the index is " + this.currRightNum);
                     return true;
                 }
 
@@ -262,7 +289,17 @@ public class BNLJOperator extends JoinOperator {
     }
 
 
+      private void debugprints(){
+        System.out.print("Left Page Number : ");
+        System.out.println(this.leftPage.getPageNum());
+        System.out.print("Left record index : ");
+        System.out.println(this.currLeftNum);
+        System.out.print("Right Page Number : ");
+        System.out.println(rightPage.getPageNum());
+        System.out.print("Right record index : ");
+        System.out.println(this.currRightNum);
 
+      }
 
       private Record retrieveNextLeftRecord() {
         try{
@@ -338,6 +375,19 @@ public class BNLJOperator extends JoinOperator {
         if (this.hasNext()) {
             Record r = this.nextRecord;
             this.nextRecord = null;
+//            debugprints();
+
+
+            if (this.leftPage.getPageNum() == 1 && this.currLeftNum == 287) {
+                int x = 0;
+            }
+//
+//            System.out.print("Left Page Number : ");
+//            System.out.println(this.leftPage.getPageNum());
+//
+//            System.out.print("Left record index : ");
+//            System.out.println(this.currLeftNum);
+
             return r;
         }
       throw new NoSuchElementException();
