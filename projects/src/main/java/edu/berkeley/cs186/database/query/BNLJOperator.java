@@ -215,6 +215,62 @@ public class BNLJOperator extends JoinOperator {
 //                    System.out.println((this.currLeftNum + 1) + " < " + BNLJOperator.this.getNumEntriesPerPage(leftTableName));
 
                 if (this.leftRecord == null) {
+                    // case 1: more pages in buffer
+                    if (this.bufferPointer < this.bufferFill) {
+                        this.leftPage = this.block[this.bufferPointer];
+                        this.bufferPointer++;
+                        this.currLeftNum = 0;
+                        this.currRightNum = 0;
+                    }
+                    else {
+                        // case 2: no more pages in buffer and more pages in the right iterator
+                        if (this.rightIterator.hasNext()) {
+                            this.bufferPointer = 0;
+                            this.currRightNum = 0;
+                            this.currLeftNum = 0;
+                            this.rightPage = this.rightIterator.next();
+
+                        }
+                        // case 3: no more pages in buffer, but more in the left iterator
+                        else if (this.leftIterator.hasNext()){
+                            this.block = new Page[this.numBuffersAvail];
+                            this.currRightNum = 0;
+                            this.currLeftNum = 0;
+                            this.bufferPointer = 0;
+                            this.bufferFill = 0;
+                            Page p;
+
+                            for (int i = 0; i < this.block.length; i++) {
+                                if (this.leftIterator.hasNext()) {
+                                    p = this.leftIterator.next();
+                                    this.bufferFill++;
+                                } else {
+                                    break;
+                                }
+                                this.block[i] = p;
+
+                            }
+                            this.rightIterator = BNLJOperator.this.getPageIterator(rightTableName);
+                            this.leftPage = this.block[this.bufferPointer];
+                            this.bufferPointer++;
+                            this.rightPage = this.rightIterator.next();
+                            continue;
+
+                        } else {
+                            return false;
+                        }
+                    }
+
+                    // case 3: no more pages in buffer, but more in the left iterator
+
+                    // case 4: none
+//                    else {
+//                        return false
+//                    }
+
+
+                }
+                if (this.leftRecord == null) {
                     // case 1:more left in the buffer
                     System.out.println("hjfdsxbghjksdfkjhkjlghjklshljksfhljdhjgsjdkfhgkjhdjfklghdfljk");
 
@@ -248,7 +304,16 @@ public class BNLJOperator extends JoinOperator {
                         this.bufferPointer++;
                         this.rightPage = this.rightIterator.next();
 
-                    } else {
+                    }
+                    else if (this.bufferPointer >= this.bufferFill && this.rightIterator.hasNext()) {
+                        this.bufferPointer = 0;
+                        this.currRightNum = 0;
+                        this.currLeftNum = 0;
+                        this.rightPage = this.rightIterator.next();
+//                        continue;
+                    }
+
+                    else {
                         return false;
                     }
                 }
