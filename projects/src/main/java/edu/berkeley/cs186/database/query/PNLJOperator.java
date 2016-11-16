@@ -40,9 +40,9 @@ public class PNLJOperator extends JoinOperator {
         // numEntriesPerPage = BNLJOperator.this.getNumEntriesPerPage(tableName);
         //  numEntriesPerTable = BNLJOperator.this.getLeftSource().getStats().getNumRecords();
 
-        int leftpages = PNLJOperator.this.getLeftSource().getStats().getNumRecords();
-        int rightpages = PNLJOperator.this.getRightSource().getStats().getNumRecords();
-        return rightpages*leftpages + leftpages;
+        int leftpages = PNLJOperator.this.getLeftSource().getStats().getNumPages();
+        int rightpages = PNLJOperator.this.getRightSource().getStats().getNumPages();
+        return (rightpages * leftpages) + leftpages;
     }
 
     /**

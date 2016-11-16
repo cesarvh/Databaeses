@@ -5,6 +5,7 @@ import java.util.*;
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.datatypes.DataType;
+import edu.berkeley.cs186.database.io.Page;
 import edu.berkeley.cs186.database.table.Record;
 
 /**
@@ -258,8 +259,20 @@ public class QueryPlan {
    * @throws QueryPlanException
    */
   private QueryOperator pushDownWheres(QueryOperator source, int except) throws QueryPlanException, DatabaseException {
-    // TODO: implement me!
-    return source;
+//      ArrayList<Integer> keep = new ArrayList<Integer>();
+      QueryOperator newSource = source;
+      for (int i = 0; i < this.whereColumnNames.size(); i++) {
+          if (i != except) {
+              try {
+                  source.checkSchemaForColumn(source.computeSchema(), this.whereColumnNames.get(i));
+                  newSource = new WhereOperator(source, this.whereColumnNames.get(i), this.whereOperators.get(i), this.whereDataTypes.get(i));
+              } catch (QueryPlanException e) {
+                  continue;
+              }
+          }
+      }
+
+    return newSource;
   }
 
   /**
@@ -276,21 +289,49 @@ public class QueryPlan {
    * @throws QueryPlanException
    */
   private QueryOperator minCostSingleAccess(String table) throws DatabaseException, QueryPlanException {
-    QueryOperator minOp = null;
+      QueryOperator minOp = null;
+      int minOpCost = 0;
 
-    // Find the cost of a sequential scan of the table
-    // TODO: implement me!
+      // Find the cost of a sequential scan of the table
+      QueryOperator seqScanOperator = new SequentialScanOperator(this.transaction, table);
+      int seqCost = seqScanOperator.getIOCost();
+      int indCost;
+      minOpCost = seqCost;
+      minOp = seqScanOperator;
 
-    // For each eligible index column, find the cost of an index scan of the
-    // table and retain the lowest cost operator
-    List<Integer> whereIndices = this.getEligibleIndexColumns(table);
-    int minWhereIdx = -1;
-    // TODO: implement me!
 
-    // Push down WHERE predicates that apply to this table and that were not
-    // used for an index scan
-    minOp = this.pushDownWheres(minOp, minWhereIdx);
-    return minOp;
+
+      // For each eligible index column, find the cost of an index scan of the
+      // table and retain the lowest cost operator
+      int minWhereIdx = -1;
+
+      List<Integer> whereIndices = this.getEligibleIndexColumns(table); // keep track of lowest index
+      for (int i = 0; i < whereIndices.size(); i++) {
+         QueryOperator op = new IndexScanOperator(this.transaction, table, this.whereColumnNames.get(i), this.whereOperators.get(i), this.whereDataTypes.get(i));
+         indCost = op.getIOCost();
+         if (indCost < minOpCost) {
+             minOp = op;
+             minOpCost = indCost;
+             minWhereIdx = i;
+         }
+      }
+
+//      -before the call to pushDownWheres is made, I assigned minOp to an IndexScanOperator if minWhereidx is not -1
+//       and if minCost != cost of sequential scan (if minCost == cost of sequential scan, it would mean that the sequential
+//       scan IO was less than any of the Index cost) or to a SequentialScanOperator otherwise.
+
+//      if (minWhereIdx != -1 && minOpCost != seqCost) {
+//          minOp = new IndexScanOperator(this.transaction, table, this.whereColumnNames.get(i), this.whereOperators.get(i), this.whereDataTypes.get(i));
+//          minOp =  qOP;
+//          int j = 0;
+//      }  else {
+//          minOp = new SequentialScanOperator(this.transaction, table);
+//      }
+
+      // Push down WHERE predicates that apply to this table and that were not
+      // used for an index scan
+      minOp = this.pushDownWheres(minOp, minWhereIdx);
+      return minOp;
   }
 
   /**

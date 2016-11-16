@@ -8,6 +8,7 @@ import java.util.NoSuchElementException;
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.datatypes.DataType;
+import edu.berkeley.cs186.database.io.Page;
 import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.Schema;
 import edu.berkeley.cs186.database.table.stats.TableStats;
@@ -168,8 +169,17 @@ public class IndexScanOperator extends QueryOperator {
    * @throws QueryPlanException
    */
   public int estimateIOCost() throws QueryPlanException {
-    // TODO: implement me!
-    return 1;
+      // TODO: implement me!
+
+      try {
+//          int numIndexPages = this.transaction.getNumIndexPages(this.tableName, this.columnName);
+//          long numRecords = this.transaction.getNumRecords(this.tableName);
+//          float reductionFactor = this.transaction.getStats(this.tableName).getReductionFactor(this.columnIndex, this.predicate, this.value);
+          return (int) Math.ceil((double) (this.transaction.getNumIndexPages(this.tableName, this.columnName) + this.transaction.getNumRecords(this.tableName)) * this.transaction.getStats(this.tableName).getReductionFactor(this.columnIndex, this.predicate, this.value));
+//          return cost;
+      } catch (DatabaseException e) {
+          throw new QueryPlanException("Database exception");
+      }
   }
 
   public Iterator<Record> iterator() throws QueryPlanException, DatabaseException {
