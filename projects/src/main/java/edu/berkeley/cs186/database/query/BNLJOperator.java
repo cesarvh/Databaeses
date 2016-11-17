@@ -135,8 +135,9 @@ public class BNLJOperator extends JoinOperator {
          *
          *
          */
-        public boolean hasNext() {
-            // TODO: implement me!
+    public boolean hasNext() {
+
+
             if (this.nextRecord != null) {
                 return true;
             }
@@ -310,7 +311,9 @@ public class BNLJOperator extends JoinOperator {
                             int offset = BNLJOperator.this.getHeaderSize((leftTableName)) + (entrySize * currLeftNum);
                             byte[] bytes = this.leftPage.readBytes(offset, entrySize);
                             Record toRtn = BNLJOperator.this.getLeftSource().getOutputSchema().decode(bytes);
+//                            this.currLeftNum++;
                             return toRtn;
+
                         }
                         this.currLeftNum++;
                     }
@@ -336,7 +339,9 @@ public class BNLJOperator extends JoinOperator {
                             int offset = BNLJOperator.this.getHeaderSize((rightTableName)) + (entrySize * currRightNum);
                             byte[] bytes = this.rightPage.readBytes(offset, entrySize);
                             Record toRtn = BNLJOperator.this.getRightSource().getOutputSchema().decode(bytes);
+//                            this.currRightNum++;
                             return toRtn;
+
                         }
                         this.currRightNum++;
                     }
