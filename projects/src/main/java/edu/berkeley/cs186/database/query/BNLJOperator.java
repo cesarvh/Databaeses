@@ -65,6 +65,9 @@ public class BNLJOperator extends JoinOperator {
         private int currRightNum;
         private int bufferPointer;
         private  int bufferFill;
+
+        Boolean restart;
+
         public BNLJIterator() throws QueryPlanException, DatabaseException {
             if (BNLJOperator.this.getLeftSource().isSequentialScan()) {
                 this.leftTableName = ((SequentialScanOperator)BNLJOperator.this.getLeftSource()).getTableName();
@@ -98,7 +101,6 @@ public class BNLJOperator extends JoinOperator {
             this.bufferPointer = 0;
             this.bufferFill = 0;
 
-//            refillBuffer();
             this.block = new Page[this.numBuffersAvail];
             Page p;
             int i = 0;
@@ -117,14 +119,13 @@ public class BNLJOperator extends JoinOperator {
 
             // get the intial pages
             this.leftPage = this.block[this.bufferPointer];
-            //this.bufferPointer++;
 
             this.rightPage = this.rightIterator.next();
             this.rightPage = this.rightIterator.next();
 
             this.leftRecord = retrieveNextLeftRecord();
-//            this.rightRecord = retrieveNextRightRecord();
 
+            this.restart = false;
 
         }
 
@@ -144,15 +145,18 @@ public class BNLJOperator extends JoinOperator {
                 return true;
             }
             try {
+
                 while (true) {
+
                     this.rightRecord = retrieveNextRightRecord();
+                    this.restart = false;
+                    mainLeft:
                     while (this.leftRecord != null) {
                         while (this.rightRecord != null) {
 
                             DataType leftJoinValue = this.leftRecord.getValues().get(BNLJOperator.this.getLeftColumnIndex());
                             DataType rightJoinValue = rightRecord.getValues().get(BNLJOperator.this.getRightColumnIndex());
                             if (leftJoinValue.equals(rightJoinValue)) {
-
                                 List<DataType> leftValues = new ArrayList<DataType>(this.leftRecord.getValues());
                                 List<DataType> rightValues = new ArrayList<DataType>(rightRecord.getValues());
                                 leftValues.addAll(rightValues);
@@ -160,7 +164,8 @@ public class BNLJOperator extends JoinOperator {
 
                                 return true;
                             } else {
-                                this.rightRecord = retrieveNextRightRecord();
+                                this.restart = true;
+                                break mainLeft;
                             }
                         }
                         this.leftRecord = retrieveNextLeftRecord();
@@ -168,20 +173,21 @@ public class BNLJOperator extends JoinOperator {
                         this.rightRecord = retrieveNextRightRecord();
 
                     }
+                    if (!restart) {
 
-                    if (this.rightIterator.hasNext()) {
-                        // continue on the next page to the right
-                        this.rightPage = this.rightIterator.next();
-                        this.currRightNum = 0;
-                        this.currLeftNum = 0;
-                        this.bufferPointer = 0;
-                        this.leftRecord = this.retrieveNextLeftRecord();
-                    } else {
-                        if (this.currLeftNum + 1 < BNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
-                            this.currLeftNum++;
+                        if (this.rightIterator.hasNext()) {
+                            // continue on the next page to the right
+                            this.rightPage = this.rightIterator.next();
                             this.currRightNum = 0;
+                            this.currLeftNum = 0;
+                            this.bufferPointer = 0;
+                            this.leftRecord = this.retrieveNextLeftRecord();
                         } else {
-                            if (this.leftIterator.hasNext()) {
+                            if (this.currLeftNum + 1 < BNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
+                                this.currLeftNum++;
+                                this.currRightNum = 0;
+                            } else if (this.leftIterator.hasNext()) {
+//                                if (this.leftIterator.hasNext()) {
                                 refillBuffer();
                                 this.rightIterator = BNLJOperator.this.getPageIterator(this.rightTableName);
                                 this.rightPage = this.rightIterator.next();
@@ -190,30 +196,33 @@ public class BNLJOperator extends JoinOperator {
                                 this.currRightNum = 0;
                                 this.bufferPointer = 0;
 //                                this.leftPage = this.block[this.bufferPointer];
-                                this.bufferPointer++;
+//                                this.bufferPointer++;
                                 this.leftRecord = retrieveNextLeftRecord();
 
                             } else {
                                 return false;
                             }
                         }
+
+                    } else {
+                        continue;
                     }
-
-
                 }
-            } catch (Exception e) {
+
+                } catch (Exception e) {
                 return false;
             }
         }
+
 
         private void refillBuffer() {
             this.block = new Page[this.numBuffersAvail];
             Page p;
             int i = 0;
+            this.bufferPointer = 0;
             while (i < this.block.length) {
                 if (this.leftIterator.hasNext()) {
                     p = this.leftIterator.next();
-//                    if (p.getPageNum() != 0) {
                     this.block[i] = p;
                     this.bufferFill++;
                     i++;
@@ -228,17 +237,15 @@ public class BNLJOperator extends JoinOperator {
 
         private Record retrieveNextLeftRecord() {
             try {
-                byte[] leftHeader = null;
                 while (this.bufferPointer < this.numBuffersAvail) {
                     if (this.bufferPointer < this.bufferFill) {
                         this.leftPage = this.block[this.bufferPointer];
-                        leftHeader = BNLJOperator.this.getPageHeader(rightTableName, this.leftPage);
                     } else {
                         return null;
                     }
 
                     while (this.currLeftNum < BNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
-                        leftHeader = BNLJOperator.this.getPageHeader(rightTableName, this.leftPage);
+                        byte[] leftHeader = BNLJOperator.this.getPageHeader(rightTableName, this.leftPage);
                         byte b = leftHeader[this.currLeftNum / 8];
                         int bitOffset = 7 - (this.currLeftNum % 8);
                         byte mask = (byte) (1 << bitOffset);
@@ -264,37 +271,11 @@ public class BNLJOperator extends JoinOperator {
             }
             return null;
         }
-//                while(true) {
-//                    while (this.currLeftNum < BNLJOperator.this.getNumEntriesPerPage(leftTableName)) {
-//
-//                        leftHeader = BNLJOperator.this.getPageHeader(rightTableName,this.leftPage);
-//                        byte b = leftHeader[this.currLeftNum/8];
-//                        int bitOffset = 7 - (this.currLeftNum % 8);
-//                        byte mask = (byte) (1 << bitOffset);
-//                        byte value = (byte) (b & mask);
-//                        if (value != 0) {
-//                            int entrySize = BNLJOperator.this.getEntrySize(leftTableName);
-//                            int offset = BNLJOperator.this.getHeaderSize((leftTableName)) + (entrySize * currLeftNum);
-//                            byte[] bytes = this.leftPage.readBytes(offset, entrySize);
-//                            Record toRtn = BNLJOperator.this.getLeftSource().getOutputSchema().decode(bytes);
-//                            this.currLeftNum++;
-//                            return toRtn;
-//
-//                        }
-//                        this.currLeftNum++;
-//                    }
-//                    return null;
-//                }
-//
-//            } catch (Exception e){
-//                return null;
-//            }
-//        }
         private Record retrieveNextRightRecord() {
             try{
                 while (true) {
                     while (this.currRightNum < BNLJOperator.this.getNumEntriesPerPage(rightTableName)) {
-//                        if (rightPage.getPageNum() == 0) { this.rightPage = this.rightIterator.next(); }
+                        if (rightPage.getPageNum() == 0) { this.rightPage = this.rightIterator.next(); }
                         byte[] rightHeader = BNLJOperator.this.getPageHeader(rightTableName,this.rightPage);
                         byte b = rightHeader[this.currRightNum / 8];
                         int bitOffset = 7 - (this.currRightNum % 8);
@@ -329,18 +310,7 @@ public class BNLJOperator extends JoinOperator {
             if (this.hasNext()) {
                 Record r = this.nextRecord;
                 this.nextRecord = null;
-//            debugprints();
 
-
-//                if (this.leftPage.getPageNum() == 1 && this.currLeftNum == 287) {
-//                    int x = 0;
-//                }
-//
-//            System.out.print("Left Page Number : ");
-//            System.out.println(this.leftPage.getPageNum());
-//
-//            System.out.print("Left record index : ");
-//            System.out.println(this.currLeftNum);
 
                 return r;
             }
