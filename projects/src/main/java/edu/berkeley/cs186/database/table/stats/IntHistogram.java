@@ -203,6 +203,9 @@ public class IntHistogram implements Histogram<Integer>{
     float reductionFactor = 1;
 
     switch (predicate) {
+      case NOT_EQUALS:
+        reductionFactor = (float) 1 - ((float) 1/ (float) this.getNumDistinct());
+        break;
       case EQUALS:
         reductionFactor = (float) 1/ (float) this.getNumDistinct();
         break;
@@ -210,14 +213,13 @@ public class IntHistogram implements Histogram<Integer>{
         reductionFactor = (float) (value.getInt() - getMinValue()) / (float) (getMaxValue() - getMinValue());
         break;
       case LESS_THAN_EQUALS:
-//        reductionFactor = (float) ((value.getInt()  + 1) - getMinValue()) / (float) (getMaxValue() - getMinValue())
         reductionFactor = ((value.getInt() - getMinValue()) / (float) (getMaxValue() - getMinValue())) +  (1/ (float) this.getNumDistinct());
         break;
       case GREATER_THAN:
         reductionFactor = (float) (getMaxValue() - value.getInt()) / (float) (getMaxValue() - getMinValue());
         break;
       case GREATER_THAN_EQUALS:
-          reductionFactor = ((getMaxValue() - value.getInt()) / (float) (getMaxValue() - getMinValue())) + (float) 1/ (float) this.getNumDistinct();
+          reductionFactor = (float) (getMaxValue() - value.getInt()) / (float) (getMaxValue() - getMinValue()) + (float) 1/ (float) this.getNumDistinct();
         break;
       default:
         break;

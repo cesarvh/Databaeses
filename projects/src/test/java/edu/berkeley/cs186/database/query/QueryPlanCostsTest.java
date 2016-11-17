@@ -197,4 +197,51 @@ public class QueryPlanCostsTest {
     JoinOperator rightJoinLeft = new GraceHashOperator(right, left, "int", "int", transaction);
     assertEquals(66, rightJoinLeft.estimateIOCost());
   }
+
+  @Test
+  @Category(StudentTestP2.class)
+  public void testEmptyRightTableJoinCostBNLJ() throws DatabaseException, QueryPlanException {
+    List<DataType> values = TestUtils.createRecordWithAllTypes().getValues();
+    this.database.createTable(TestUtils.createSchemaWithAllTypes(), "FullIntTable");
+    this.database.createTable(TestUtils.createSchemaWithAllTypes(), "EmptyIntTable");
+
+    Database.Transaction transaction = this.database.beginTransaction();
+    int numEntries = transaction.getNumEntriesPerPage("FullIntTable");
+
+    for (int i = 0; i < 40 * numEntries; i++) {
+      transaction.addRecord("FullIntTable", values);
+    }
+
+    QueryOperator left = new SequentialScanOperator(transaction, "FullIntTable");
+    QueryOperator right = new SequentialScanOperator(transaction, "EmptyIntTable");
+
+    JoinOperator leftJoin = new BNLJOperator(left, right, "int", "int", transaction);
+
+    assertEquals(leftJoin.getIOCost(), 40);
+
+  }
+
+  @Test
+  @Category(StudentTestP2.class)
+  public void testEmptyLeftTableSNLJ() throws DatabaseException, QueryPlanException {
+    List<DataType> values = TestUtils.createRecordWithAllTypes().getValues();
+    this.database.createTable(TestUtils.createSchemaWithAllTypes(), "FullIntTable");
+    this.database.createTable(TestUtils.createSchemaWithAllTypes(), "EmptyIntTable");
+
+    Database.Transaction transaction = this.database.beginTransaction();
+    int numEntries = transaction.getNumEntriesPerPage("FullIntTable");
+
+    for (int i = 0; i < 40 * numEntries; i++) {
+      transaction.addRecord("FullIntTable", values);
+    }
+
+    QueryOperator left = new SequentialScanOperator(transaction, "FullIntTable");
+    QueryOperator right = new SequentialScanOperator(transaction, "EmptyIntTable");
+
+
+    JoinOperator leftJoin = new SNLJOperator(right, left, "int", "int", transaction);
+    assertEquals(leftJoin.getIOCost(), 0);
+
+  }
+
 }

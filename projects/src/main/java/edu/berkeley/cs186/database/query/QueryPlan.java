@@ -338,25 +338,64 @@ public class QueryPlan {
                                                                        DatabaseException {
 
       JoinOperator current = null;
+      JoinOperator currentReversed = null;
       int minCost = Integer.MAX_VALUE;
       QueryOperator minOp = null;
       //iterate left, right
+      int currentCost = -1;
+      int currentReversedCost = -1;
       for (JoinOperator.JoinType jo : JoinOperator.JoinType.values()) {
           switch (jo) {
               case PNLJ:
                   current = new PNLJOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  currentReversed = new PNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  currentCost = current.getIOCost();
+                  currentReversedCost = currentReversed.getIOCost();
+
+                  if (currentReversedCost < currentCost) {
+                      currentCost = currentReversedCost;
+                      current = currentReversed;
+
+                  }
                   break;
               case BNLJ:
                   current = new BNLJOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  currentReversed = new BNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  currentCost = current.getIOCost();
+                  currentReversedCost = currentReversed.getIOCost();
+
+                  if (currentReversedCost < currentCost) {
+                      currentCost = currentReversedCost;
+                      current = currentReversed;
+
+                  }
                   break;
               case GRACEHASH:
                   current = new GraceHashOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  currentReversed = new GraceHashOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  currentCost = current.getIOCost();
+                  currentReversedCost = currentReversed.getIOCost();
+
+                  if (currentReversedCost < currentCost) {
+                      currentCost = currentReversedCost;
+                      current = currentReversed;
+
+                  }
                   break;
               case SNLJ:
                   current = new SNLJOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  currentReversed = new SNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  currentCost = current.getIOCost();
+                  currentReversedCost = currentReversed.getIOCost();
+
+                  if (currentReversedCost < currentCost) {
+                      currentCost = currentReversedCost;
+                      current = currentReversed;
+
+                  }
                   break;
           }
-          int currentCost = current.estimateIOCost();
+//          int currentCost = current.estimateIOCost();
 
           if (currentCost < minCost) {
               minCost = currentCost;
@@ -365,30 +404,6 @@ public class QueryPlan {
 
       }
 
-      // iterate right, left
-      for (JoinOperator.JoinType jo : JoinOperator.JoinType.values()) {
-          switch (jo) {
-              case PNLJ:
-                  current = new PNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
-                  break;
-              case BNLJ:
-                  current = new BNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
-                  break;
-              case GRACEHASH:
-                  current = new GraceHashOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
-                  break;
-              case SNLJ:
-                  current = new SNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
-                  break;
-          }
-          int currentCost = current.estimateIOCost();
-
-          if (currentCost < minCost) {
-              minCost = currentCost;
-              minOp = current;
-          }
-
-      }
         return minOp;
   }
 
@@ -419,6 +434,7 @@ public class QueryPlan {
       int lowestCost = Integer.MAX_VALUE;
       QueryOperator minOp = null;
       QueryOperator op2 = null;
+      int opCost;
       for (Set key : prevMap.keySet()) {
           QueryOperator previousOperator = prevMap.get(key);
 
@@ -431,21 +447,22 @@ public class QueryPlan {
                   st.add(resR[0]);
                   QueryOperator pass1Op = pass1Map.get(st);
                   op = minCostJoinType(previousOperator, pass1Op, resL[1], resR[1]);
-
-                  if (op.getIOCost() < lowestCost) {
-                      lowestCost = op.getIOCost();
+                  opCost = op.getIOCost();
+                  if (opCost < lowestCost) {
+                      lowestCost = opCost;
                       minOp = op;
                       st.addAll(key);
                       cumulator = st;
                   }
               }
-              if (key.contains(resR[0])) {
+              else if (key.contains(resR[0])) {
                   Set<String> st = new HashSet<String>();
                   st.add(resL[0]);
                   QueryOperator pass1Op = pass1Map.get(st);
                   op = minCostJoinType(pass1Op, previousOperator, resL[1], resR[1]);
-                  if (op.getIOCost() < lowestCost) {
-                      lowestCost = op.getIOCost();
+                  opCost = op.getIOCost();
+                  if (opCost < lowestCost) {
+                      lowestCost = opCost;
                       minOp = op;
                       st.addAll(key);
                       cumulator = st;
