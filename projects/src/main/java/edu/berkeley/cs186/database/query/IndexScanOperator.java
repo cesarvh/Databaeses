@@ -175,7 +175,10 @@ public class IndexScanOperator extends QueryOperator {
 //          int numIndexPages = this.transaction.getNumIndexPages(this.tableName, this.columnName);
 //          long numRecords = this.transaction.getNumRecords(this.tableName);
 //          float reductionFactor = this.transaction.getStats(this.tableName).getReductionFactor(this.columnIndex, this.predicate, this.value);
-          return (int) Math.ceil((double) (this.transaction.getNumIndexPages(this.tableName, this.columnName) + this.transaction.getNumRecords(this.tableName)) * this.transaction.getStats(this.tableName).getReductionFactor(this.columnIndex, this.predicate, this.value));
+          return (int) Math.ceil((double) (this.transaction.getNumIndexPages(this.tableName, this.columnName) +
+                  this.transaction.getNumRecords(this.tableName)) *
+                  this.transaction.getStats(this.tableName).getReductionFactor(this.columnIndex, this.predicate, this.value));
+
 //          return cost;
       } catch (DatabaseException e) {
           throw new QueryPlanException("Database exception");

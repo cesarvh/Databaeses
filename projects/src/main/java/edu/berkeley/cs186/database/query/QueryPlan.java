@@ -264,7 +264,7 @@ public class QueryPlan {
       for (int i = 0; i < this.whereColumnNames.size(); i++) {
           if (i != except) {
               try {
-                  source.checkSchemaForColumn(source.computeSchema(), this.whereColumnNames.get(i));
+//                  source.checkSchemaForColumn(source.computeSchema(), this.whereColumnNames.get(i));
                   newSource = new WhereOperator(source, this.whereColumnNames.get(i), this.whereOperators.get(i), this.whereDataTypes.get(i));
               } catch (QueryPlanException e) {
                   continue;
@@ -316,18 +316,6 @@ public class QueryPlan {
          }
       }
 
-//      -before the call to pushDownWheres is made, I assigned minOp to an IndexScanOperator if minWhereidx is not -1
-//       and if minCost != cost of sequential scan (if minCost == cost of sequential scan, it would mean that the sequential
-//       scan IO was less than any of the Index cost) or to a SequentialScanOperator otherwise.
-
-//      if (minWhereIdx != -1 && minOpCost != seqCost) {
-//          minOp = new IndexScanOperator(this.transaction, table, this.whereColumnNames.get(i), this.whereOperators.get(i), this.whereDataTypes.get(i));
-//          minOp =  qOP;
-//          int j = 0;
-//      }  else {
-//          minOp = new SequentialScanOperator(this.transaction, table);
-//      }
-
       // Push down WHERE predicates that apply to this table and that were not
       // used for an index scan
       minOp = this.pushDownWheres(minOp, minWhereIdx);
@@ -346,12 +334,62 @@ public class QueryPlan {
                                         QueryOperator rightOp,
                                         String leftColumn,
                                         String rightColumn) throws QueryPlanException,
-                                                                   DatabaseException {
-    QueryOperator minOp = null;
 
-    // TODO: implement me!
+                                                                       DatabaseException {
 
-    return minOp;
+      JoinOperator current = null;
+      int minCost = Integer.MAX_VALUE;
+      QueryOperator minOp = null;
+      //iterate left, right
+      for (JoinOperator.JoinType jo : JoinOperator.JoinType.values()) {
+          switch (jo) {
+              case PNLJ:
+                  current = new PNLJOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  break;
+              case BNLJ:
+                  current = new BNLJOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  break;
+              case GRACEHASH:
+                  current = new GraceHashOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  break;
+              case SNLJ:
+                  current = new SNLJOperator(rightOp, leftOp, rightColumn, leftColumn, this.transaction);
+                  break;
+          }
+          int currentCost = current.estimateIOCost();
+
+          if (currentCost < minCost) {
+              minCost = currentCost;
+              minOp = current;
+          }
+
+      }
+
+      // iterate right, left
+      for (JoinOperator.JoinType jo : JoinOperator.JoinType.values()) {
+          switch (jo) {
+              case PNLJ:
+                  current = new PNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  break;
+              case BNLJ:
+                  current = new BNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  break;
+              case GRACEHASH:
+                  current = new GraceHashOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  break;
+              case SNLJ:
+                  current = new SNLJOperator(leftOp, rightOp, leftColumn, rightColumn, this.transaction);
+                  break;
+          }
+          int currentCost = current.estimateIOCost();
+
+          if (currentCost < minCost) {
+              minCost = currentCost;
+              minOp = current;
+          }
+
+      }
+        return minOp;
   }
 
   /**
@@ -366,14 +404,68 @@ public class QueryPlan {
    * @return a mapping of table names to a join QueryOperator
    * @throws QueryPlanException
    */
+
   private Map<Set, QueryOperator> minCostJoins(Map<Set, QueryOperator> prevMap,
                                                Map<Set, QueryOperator> pass1Map) throws QueryPlanException,
+
                                                                                         DatabaseException {
-    Map<Set, QueryOperator> map = new HashMap<Set, QueryOperator>();
+      Map<Set, QueryOperator> map = new HashMap<Set, QueryOperator>();
+
+      String[] resL;
+      String[] resR;
+      QueryOperator op = null;
+//      Set<String> st = null;
+      Set cumulator = null;
+      int lowestCost = Integer.MAX_VALUE;
+      QueryOperator minOp = null;
+      QueryOperator op2 = null;
+      for (Set key : prevMap.keySet()) {
+          QueryOperator previousOperator = prevMap.get(key);
+
+          for (int i = 0; i < this.joinLeftColumnNames.size(); i++) {
+              resL = this.joinLeftColumnNames.get(i).split("\\.");
+              resR = this.joinRightColumnNames.get(i).split("\\.");
+
+              if (key.contains(resL[0])) {
+                  Set<String> st = new HashSet<String>();
+                  st.add(resR[0]);
+                  QueryOperator pass1Op = pass1Map.get(st);
+                  op = minCostJoinType(previousOperator, pass1Op, resL[1], resR[1]);
+
+                  if (op.getIOCost() < lowestCost) {
+                      lowestCost = op.getIOCost();
+                      minOp = op;
+                      st.addAll(key);
+                      cumulator = st;
+                  }
+              }
+              if (key.contains(resR[0])) {
+                  Set<String> st = new HashSet<String>();
+                  st.add(resL[0]);
+                  QueryOperator pass1Op = pass1Map.get(st);
+                  op = minCostJoinType(pass1Op, previousOperator, resL[1], resR[1]);
+                  if (op.getIOCost() < lowestCost) {
+                      lowestCost = op.getIOCost();
+                      minOp = op;
+                      st.addAll(key);
+                      cumulator = st;
+                  }
+              }
+          }
+      }
+      map.put(cumulator, minOp);
+
+      return map;
+
+
+
 
     // TODO: implement me!
-
-    return map;
+    // Remember to only consider left-deep plans and to avoid creating any Cartesian products.
+    // Use the list of explicit join conditions added through the QueryPlan#join method to identify potential joins.
+    // Once you've identified a potential join between a left set of tables and a right table, you should be considering
+    //       each type of join implementation in QueryPlan#minCostJoinType which will be called by the QueryPlan#minCostJoins method.
+//    return map;
   }
 
   /**

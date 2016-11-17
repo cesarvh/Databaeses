@@ -36,7 +36,8 @@ public class SNLJOperator extends JoinOperator {
   public int estimateIOCost() throws QueryPlanException {
     // TODO: implement me!
 
-    return (SNLJOperator.this.getLeftSource().getStats().getNumRecords() * SNLJOperator.this.getRightSource().getStats().getNumPages()) + SNLJOperator.this.getLeftSource().getStats().getNumPages();
+    return (SNLJOperator.this.getLeftSource().getStats().getNumRecords() * SNLJOperator.this.getRightSource().getStats().getNumPages())
+            + SNLJOperator.this.getLeftSource().getStats().getNumPages();
   }
 
   /**
