@@ -36,13 +36,13 @@ public class BNLJOperator extends JoinOperator {
         // TODO: implement me!
 //        int iOCost = 0;
 //        int rightNumPages = BNLJOperator.this.getRightSource().getStats().getNumPages();
-//        int leftNumPages = BNLJOperator.this.getLeftSource().getStats().getNumPages();
+        double leftNumPages = BNLJOperator.this.getLeftSource().getStats().getNumPages();
 //
 //        iOCost = ((leftNumPages / (BNLJOperator.this.numBuffers - 2)) * rightNumPages) + leftNumPages;
 //        return iOCost;
 
-        return (int) ((Math.ceil( (double) BNLJOperator.this.getLeftSource().getStats().getNumPages()/ (double) (BNLJOperator.this.numBuffers - 2))
-                * (double) BNLJOperator.this.getRightSource().getStats().getNumPages()) + BNLJOperator.this.getLeftSource().getStats().getNumPages());
+        return (int) ((Math.ceil( leftNumPages / (double) (BNLJOperator.this.numBuffers - 2))
+                * (double) BNLJOperator.this.getRightSource().getStats().getNumPages()) + leftNumPages);
     }
 
     /**

@@ -37,12 +37,8 @@ public class PNLJOperator extends JoinOperator {
 
     public int estimateIOCost() throws QueryPlanException {
         // TODO: implement me!
-        // numEntriesPerPage = BNLJOperator.this.getNumEntriesPerPage(tableName);
-        //  numEntriesPerTable = BNLJOperator.this.getLeftSource().getStats().getNumRecords();
 
-        int leftpages = PNLJOperator.this.getLeftSource().getStats().getNumPages();
-        int rightpages = PNLJOperator.this.getRightSource().getStats().getNumPages();
-        return (rightpages * leftpages) + leftpages;
+        return (PNLJOperator.this.getRightSource().getStats().getNumPages() * PNLJOperator.this.getLeftSource().getStats().getNumPages()) + PNLJOperator.this.getLeftSource().getStats().getNumPages();
     }
 
     /**
