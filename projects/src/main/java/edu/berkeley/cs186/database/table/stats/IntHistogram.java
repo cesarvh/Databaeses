@@ -202,32 +202,6 @@ public class IntHistogram implements Histogram<Integer>{
                                       DataType value) {
     float reductionFactor = 1;
 
-    switch (predicate) {
-      case NOT_EQUALS:
-        reductionFactor = (float) 1 - ((float) 1/ (float) this.getNumDistinct());
-        break;
-      case EQUALS:
-        reductionFactor = (float) 1/ (float) this.getNumDistinct();
-        break;
-      case LESS_THAN:
-        reductionFactor = (float) (value.getInt() - getMinValue()) / (float) (getMaxValue() - getMinValue());
-        break;
-      case LESS_THAN_EQUALS:
-        reductionFactor = ((value.getInt() - getMinValue()) / (float) (getMaxValue() - getMinValue())) +  (1/ (float) this.getNumDistinct());
-        break;
-      case GREATER_THAN:
-        reductionFactor = (float) (getMaxValue() - value.getInt()) / (float) (getMaxValue() - getMinValue());
-        break;
-      case GREATER_THAN_EQUALS:
-          reductionFactor = (float) (getMaxValue() - value.getInt()) / (float) (getMaxValue() - getMinValue()) + (float) 1/ (float) this.getNumDistinct();
-        break;
-      default:
-        break;
-    }
-
-//    System.out.println(predicate);
-
-
     // TODO: implement me!
     // Use `getMinValue()` and `getMaxValue()` to get the
     // approximate min and max values of the histogram.

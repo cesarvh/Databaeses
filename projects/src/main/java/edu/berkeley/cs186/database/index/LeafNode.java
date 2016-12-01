@@ -1,12 +1,11 @@
 package edu.berkeley.cs186.database.index;
 
 import edu.berkeley.cs186.database.datatypes.DataType;
-import edu.berkeley.cs186.database.io.Page;
 import edu.berkeley.cs186.database.table.RecordID;
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.ArrayList;
 
 /**
  * A B+ tree leaf node. A leaf node header contains the page number of the
@@ -48,7 +47,7 @@ public class LeafNode extends BPlusNode {
     }
 
     LeafNode lastLeaf = this;
-    LeafNode currLeaf = this; 
+    LeafNode currLeaf = this;
     Iterator<RecordID> currIter = currLeaf.scanForKey(key);
 
     while(currIter.hasNext()) {

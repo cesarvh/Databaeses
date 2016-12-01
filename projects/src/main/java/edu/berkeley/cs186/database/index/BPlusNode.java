@@ -1,12 +1,12 @@
 package edu.berkeley.cs186.database.index;
 
-import edu.berkeley.cs186.database.io.Page;
 import edu.berkeley.cs186.database.datatypes.DataType;
+import edu.berkeley.cs186.database.io.Page;
 import edu.berkeley.cs186.database.table.RecordID;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.ArrayList;
 
 /**
  * A B+ tree node. A node is represented as a page with a page header, slot
@@ -74,9 +74,9 @@ public abstract class BPlusNode {
    */
   public static BPlusNode getBPlusNode(BPlusTree tree, int pageNum) {
     if (tree.allocator.fetchPage(pageNum).readByte(0) == (byte) 0) {
-      return new InnerNode(tree, pageNum);  
+      return new InnerNode(tree, pageNum);
     }
-    return new LeafNode(tree, pageNum);  
+    return new LeafNode(tree, pageNum);
   }
 
   /**
@@ -194,7 +194,7 @@ public abstract class BPlusNode {
    */
   protected List<BEntry> getAllValidEntries() {
     byte[] bitMap = this.getBitMap();
-    List<BEntry> entries = new ArrayList<BEntry>(); 
+    List<BEntry> entries = new ArrayList<BEntry>();
     for (int i = 0; i < this.numEntries; i++) {
       int byteOffset = i/8;
       int bitOffset = 7 - (i % 8);

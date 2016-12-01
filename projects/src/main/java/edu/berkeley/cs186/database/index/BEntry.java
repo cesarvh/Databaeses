@@ -1,10 +1,7 @@
 package edu.berkeley.cs186.database.index;
 
-import edu.berkeley.cs186.database.datatypes.*;
+import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.table.RecordID;
-
-import java.util.Arrays;
-import java.nio.ByteBuffer;
 
 public abstract class BEntry implements Comparable {
   protected DataType key;

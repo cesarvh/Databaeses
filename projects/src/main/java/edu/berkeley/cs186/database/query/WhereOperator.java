@@ -1,16 +1,16 @@
 package edu.berkeley.cs186.database.query;
 
-import java.util.ArrayList;
-import java.util.NoSuchElementException;
-import java.util.Iterator;
-import java.util.List;
-
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.table.MarkerRecord;
 import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.Schema;
 import edu.berkeley.cs186.database.table.stats.TableStats;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.NoSuchElementException;
 
 public class WhereOperator extends QueryOperator {
   private int columnIndex;

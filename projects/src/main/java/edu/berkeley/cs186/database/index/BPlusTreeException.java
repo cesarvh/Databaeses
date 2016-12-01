@@ -1,7 +1,5 @@
 package edu.berkeley.cs186.database.index;
 
-import java.lang.RuntimeException;
-
 public class BPlusTreeException extends RuntimeException {
   private String message;
 

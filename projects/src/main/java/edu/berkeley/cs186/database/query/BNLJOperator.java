@@ -1,16 +1,15 @@
 package edu.berkeley.cs186.database.query;
 
+import edu.berkeley.cs186.database.Database;
+import edu.berkeley.cs186.database.DatabaseException;
+import edu.berkeley.cs186.database.datatypes.DataType;
+import edu.berkeley.cs186.database.io.Page;
+import edu.berkeley.cs186.database.table.Record;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
-
-import edu.berkeley.cs186.database.DatabaseException;
-import edu.berkeley.cs186.database.datatypes.DataType;
-import edu.berkeley.cs186.database.io.Page;
-import edu.berkeley.cs186.database.Database;
-import edu.berkeley.cs186.database.table.Record;
-import edu.berkeley.cs186.database.table.stats.TableStats;
 
 public class BNLJOperator extends JoinOperator {
 

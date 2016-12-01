@@ -1,7 +1,6 @@
 package edu.berkeley.cs186.database.index;
 
 import edu.berkeley.cs186.database.datatypes.DataType;
-import edu.berkeley.cs186.database.io.Page;
 
 import java.util.List;
 

@@ -1,7 +1,5 @@
 package edu.berkeley.cs186.database.query;
 
-import java.util.*;
-
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.datatypes.DataType;
@@ -9,6 +7,8 @@ import edu.berkeley.cs186.database.table.MarkerRecord;
 import edu.berkeley.cs186.database.table.Record;
 import edu.berkeley.cs186.database.table.Schema;
 import edu.berkeley.cs186.database.table.stats.TableStats;
+
+import java.util.*;
 
 public class GroupByOperator extends QueryOperator {
   private int groupByColumnIndex;

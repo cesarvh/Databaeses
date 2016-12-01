@@ -1,12 +1,11 @@
 package edu.berkeley.cs186.database.query;
 
-import java.util.*;
-
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
 import edu.berkeley.cs186.database.datatypes.DataType;
-import edu.berkeley.cs186.database.io.Page;
 import edu.berkeley.cs186.database.table.Record;
+
+import java.util.*;
 
 /**
  * QueryPlan provides a set of functions to generate simple queries. Calling the methods corresponding
@@ -335,7 +334,7 @@ public class QueryPlan {
                                         String leftColumn,
                                         String rightColumn) throws QueryPlanException,
 
-                                                                       DatabaseException {
+          DatabaseException {
 
       JoinOperator current = null;
       JoinOperator currentReversed = null;
@@ -423,7 +422,7 @@ public class QueryPlan {
   private Map<Set, QueryOperator> minCostJoins(Map<Set, QueryOperator> prevMap,
                                                Map<Set, QueryOperator> pass1Map) throws QueryPlanException,
 
-                                                                                        DatabaseException {
+          DatabaseException {
       Map<Set, QueryOperator> map = new HashMap<Set, QueryOperator>();
 
       String[] resL;

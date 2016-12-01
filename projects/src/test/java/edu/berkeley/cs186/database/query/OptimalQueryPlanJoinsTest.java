@@ -667,26 +667,4 @@ public class OptimalQueryPlanJoinsTest {
 
     transaction.end();
   }
-
-  @Test(expected=QueryPlanException.class)
-  @Category(StudentTestP2.class)
-  public void testJoinOnSameColumnSameTable() throws DatabaseException, QueryPlanException {
-      Database.Transaction transaction = this.database.beginTransaction();
-      transaction.queryAs(this.defaulTableName, "t1");
-      transaction.queryAs(this.defaulTableName, "t2");
-
-      QueryPlan queryPlan = transaction.query("t1");
-
-      queryPlan.join("t2", "t2.string", "t2.string");
-      List<String> columnNames = new ArrayList<String>();
-      columnNames.add("t2.string");
-      columnNames.add("t2.string");
-      queryPlan.select(columnNames);
-
-      Iterator<Record> recordIterator = queryPlan.executeOptimal();
-
-
-      transaction.end();
-    }
-
 }

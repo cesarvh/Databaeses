@@ -3,8 +3,8 @@ package edu.berkeley.cs186.database.index;
 import edu.berkeley.cs186.database.datatypes.*;
 import edu.berkeley.cs186.database.table.RecordID;
 
-import java.util.Arrays;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 /**
  * A B+ tree leaf node entry.

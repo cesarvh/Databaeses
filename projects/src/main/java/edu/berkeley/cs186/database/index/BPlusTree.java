@@ -1,14 +1,13 @@
 package edu.berkeley.cs186.database.index;
 
+import edu.berkeley.cs186.database.datatypes.*;
 import edu.berkeley.cs186.database.io.Page;
 import edu.berkeley.cs186.database.io.PageAllocator;
-import edu.berkeley.cs186.database.datatypes.DataType;
 import edu.berkeley.cs186.database.table.RecordID;
-import edu.berkeley.cs186.database.datatypes.*;
 
-import java.util.NoSuchElementException;
-import java.util.Iterator;
 import java.nio.file.Paths;
+import java.util.Iterator;
+import java.util.NoSuchElementException;
 
 /**
  * A B+ tree. Allows the user to add, delete, search, and scan for keys in an
