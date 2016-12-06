@@ -582,5 +582,123 @@ public class TestLockManager {
     assertEquals(true, true); // Do not actually write a test like this!
   }
 
+  @Test
+  @Category(StudentTestP3.class)
+  public void testDoubleReleaseOfLocks() throws InterruptedException {
+    final LockManager lockMan = new LockManager();
+    Thread thread1 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 1, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 1 Thread");
+
+    thread1.start();
+    thread1.join(100);
+
+    lockMan.releaseLock("A", 1); //Transaction 1 releasing its lock
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+    lockMan.releaseLock("A", 1); //Transaction 1 releasing its lock for the second time
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+
+
+  }
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void testTransactionReleasingLockItDoesntHold() throws InterruptedException {
+    final LockManager lockMan = new LockManager();
+    Thread thread1 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 1, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 1 Thread");
+
+    Thread thread2 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 2, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 2 Thread");
+
+    thread1.start();
+    thread1.join(100);
+
+    thread2.start();
+    thread2.join(100);
+    lockMan.releaseLock("A", 2); // Thread 1 still has lock, nothing should happen
+    assertTrue(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+    assertFalse(lockMan.holdsLock("A", 2, LockManager.LockType.EXCLUSIVE));
+    lockMan.releaseLock("A", 1);
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+  }
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void testHoldsLock() throws InterruptedException {
+    final LockManager lockMan = new LockManager();
+    Thread thread1 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 1, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 1 Thread");
+
+    thread1.start();
+    thread1.join(100);
+
+    assertTrue(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.SHARED));
+
+    lockMan.releaseLock("A", 1);
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+
+  }
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void testDowngradingReleasingThenUpgrading() throws InterruptedException {
+    final LockManager lockMan = new LockManager();
+    Thread thread1 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 1, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 1 Thread");
+
+    Thread thread2 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 2, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 2 Thread");
+
+
+    thread1.start();
+    thread1.join(100);
+    assertTrue(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+
+    lockMan.acquireLock("A", 1, LockManager.LockType.SHARED);
+
+    assertTrue(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.SHARED));
+    lockMan.releaseLock("A", 1);
+
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.SHARED));
+//    thread2.start();
+//    thread2.join(100);
+//    lockMan.acquireLock("A", 1, LockManager.LockType.EXCLUSIVE);
+//
+//
+////    lockMan.releaseLock();
+
+  }
+
+
+
+
+
 }
 
