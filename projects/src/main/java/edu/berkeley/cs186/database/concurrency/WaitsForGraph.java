@@ -21,6 +21,10 @@ public class WaitsForGraph {
      this.onStack = new HashMap<>();
   }
 
+  public boolean getCycleSwitch() {
+      return this.cycleExists;
+  }
+
   public boolean containsNode(long transNum) {
     return graph.containsKey(transNum);
   }

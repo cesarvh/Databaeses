@@ -683,11 +683,53 @@ public class TestLockManager {
 
   }
 
-  @Test
+  @Test//(expected = InterruptedException.class)
   @Category(StudentTestP3.class)
-  public void testIDK() {
+  public void testEmptyLockManReleases() throws InterruptedException {
     final LockManager lockMan = new LockManager();
+    Thread thread1 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 1, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 1 Thread");
 
+    Thread thread2 = new Thread(new Runnable() {
+      public void run() {
+        /*Code to run goes inside here */
+        lockMan.acquireLock("A", 2, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 2 Thread");
+
+    lockMan.releaseLock("A", 1);
+    lockMan.releaseLock("B", 1);
+    lockMan.releaseLock("C", 1);
+    lockMan.releaseLock("D", 1);
+    lockMan.releaseLock("E", 1);
+    lockMan.releaseLock("F", 1);
+    lockMan.acquireLock("A", 1, LockManager.LockType.SHARED);
+
+    assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
+    assertFalse(lockMan.holdsLock("B", 2, LockManager.LockType.EXCLUSIVE));
+    assertFalse(lockMan.holdsLock("C", 3, LockManager.LockType.EXCLUSIVE));
+
+    lockMan.acquireLock("B", 1, LockManager.LockType.EXCLUSIVE);
+    lockMan.acquireLock("C", 1, LockManager.LockType.EXCLUSIVE);
+    lockMan.acquireLock("D", 1, LockManager.LockType.EXCLUSIVE);
+    lockMan.acquireLock("E", 1, LockManager.LockType.EXCLUSIVE);
+    lockMan.acquireLock("F", 1, LockManager.LockType.EXCLUSIVE);
+
+    lockMan.releaseLock("A", 1);
+    lockMan.releaseLock("B", 1);
+    lockMan.releaseLock("C", 1);
+    lockMan.acquireLock("A", 1, LockManager.LockType.SHARED);
+
+    assertTrue(lockMan.holdsLock("A", 1, LockManager.LockType.SHARED));
+    assertFalse(lockMan.holdsLock("B", 1, LockManager.LockType.EXCLUSIVE));
+    assertFalse(lockMan.holdsLock("C", 1, LockManager.LockType.EXCLUSIVE));
+    assertTrue(lockMan.holdsLock("D", 1, LockManager.LockType.EXCLUSIVE));
+    assertTrue(lockMan.holdsLock("E", 1, LockManager.LockType.EXCLUSIVE));
+    assertTrue(lockMan.holdsLock("F", 1, LockManager.LockType.EXCLUSIVE));
   }
 
 

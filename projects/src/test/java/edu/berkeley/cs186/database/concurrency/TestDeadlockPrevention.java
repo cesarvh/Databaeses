@@ -443,7 +443,6 @@ public class TestDeadlockPrevention {
     g.addEdge(1, 2);
     g.addEdge(2, 3);
     g.addEdge(3, 4);
-//    g.addEdge(4, 1);
 
     assertTrue(g.edgeCausesCycle(4, 1));
 
@@ -542,12 +541,105 @@ public class TestDeadlockPrevention {
 
   }
 
-  @Test
+  @Test(expected =  NullPointerException.class)
   @Category(StudentTestP3.class)
-  public void test7() {
+  public void testComplexCycleThenNoCycleThenCycleAndNPE() {
+    WaitsForGraph g = new WaitsForGraph();
+    for (int i = 0; i < 10; i++) {
+      g.addNode(i);
+    }
+
+    for (int i= 0, j = 1; j < 10; i++, j++) {
+      g.addEdge(i, j);
+    }
+
+    g.addEdge(0, 9);
+    g.addEdge(9, 0);
+    g.addEdge(0, 5);
+    g.addEdge(5, 0);
+    assertFalse(g.getCycleSwitch());
+    g.removeEdge(5, 0);
+    g.removeEdge(0, 9);
+    assertTrue(g.edgeCausesCycle(9, 5));
+
+    g.addEdge(15, 20);
 
   }
 
+  @Test
+  @Category(StudentTestP3.class)
+  public void testAllSharedLocksNoDeadlocks() throws InterruptedException {
+    final LockManager lockMan = new LockManager();
+    AsyncDeadlockTesterThread thread1 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 1, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 1 Thread");
 
+    AsyncDeadlockTesterThread thread2 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 2, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 2 Thread");
+
+    AsyncDeadlockTesterThread thread3 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 3, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 3  Thread");
+
+    AsyncDeadlockTesterThread thread4 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 4, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 4  Thread");
+
+
+    AsyncDeadlockTesterThread thread5 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 5, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 5  Thread");
+
+
+    AsyncDeadlockTesterThread thread6 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 6, LockManager.LockType.SHARED);
+      }
+    }, "Transaction 6  Thread");
+
+    try {
+      thread1.start();
+      thread1.join(100);
+
+      thread2.start();
+      thread2.join(100);
+
+      thread3.start();
+      thread3.join(100);
+
+      thread4.start();
+      thread4.join(100);
+
+      thread5.start();
+      thread5.join(100);
+
+      thread6.start();
+      thread6.join(100);
+
+      for (int i = 1; i != 7; i++) {
+        assertTrue(lockMan.holdsLock("A", i, LockManager.LockType.SHARED));
+      }
+
+
+    } catch (DeadlockException d) {
+      fail("No Deadlocks but Deadlock was thrown, silly!");
+    }
+
+
+
+
+
+  }
 
 }
