@@ -25,8 +25,8 @@ public class TestLockManager {
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
   
-//  @Rule
-//  public Timeout maxGlobalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
+  @Rule
+  public Timeout maxGlobalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
 
 
   @Before
@@ -667,13 +667,6 @@ public class TestLockManager {
       }
     }, "Transaction 1 Thread");
 
-    Thread thread2 = new Thread(new Runnable() {
-      public void run() {
-        /*Code to run goes inside here */
-        lockMan.acquireLock("A", 2, LockManager.LockType.EXCLUSIVE);
-      }
-    }, "Transaction 2 Thread");
-
 
     thread1.start();
     thread1.join(100);
@@ -687,12 +680,13 @@ public class TestLockManager {
 
     assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.EXCLUSIVE));
     assertFalse(lockMan.holdsLock("A", 1, LockManager.LockType.SHARED));
-//    thread2.start();
-//    thread2.join(100);
-//    lockMan.acquireLock("A", 1, LockManager.LockType.EXCLUSIVE);
-//
-//
-////    lockMan.releaseLock();
+
+  }
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void testIDK() {
+    final LockManager lockMan = new LockManager();
 
   }
 

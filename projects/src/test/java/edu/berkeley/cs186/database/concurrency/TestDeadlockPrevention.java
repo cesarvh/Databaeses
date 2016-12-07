@@ -2,10 +2,12 @@ package edu.berkeley.cs186.database.concurrency;
 
 import edu.berkeley.cs186.database.Database;
 import edu.berkeley.cs186.database.DatabaseException;
+import edu.berkeley.cs186.database.StudentTestP3;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.rules.Timeout;
 
@@ -25,8 +27,8 @@ public class TestDeadlockPrevention {
   @Rule
   public TemporaryFolder tempFolder = new TemporaryFolder();
 
-//  @Rule
-//  public Timeout maxGlobalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
+  @Rule
+  public Timeout maxGlobalTimeout = Timeout.seconds(10); // 10 seconds max per method tested
 
 
   @Before
@@ -427,6 +429,125 @@ public class TestDeadlockPrevention {
     }
 
   }
+
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void testDirectedCycleDetector() {
+    WaitsForGraph g = new WaitsForGraph();
+    g.addNode(1);
+    g.addNode(2);
+    g.addNode(3);
+    g.addNode(4);
+
+    g.addEdge(1, 2);
+    g.addEdge(2, 3);
+    g.addEdge(3, 4);
+//    g.addEdge(4, 1);
+
+    assertTrue(g.edgeCausesCycle(4, 1));
+
+    g.removeEdge(1, 2);
+    g.removeEdge(2, 3);
+    g.removeEdge(3, 4);
+
+    assertTrue(g.containsNode(1));
+    assertTrue(g.containsNode(2));
+    assertTrue(g.containsNode(3));
+    assertTrue(g.containsNode(4));
+    assertFalse(g.edgeExists(4, 1));
+  }
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void testLargeDependency() {
+    WaitsForGraph g = new WaitsForGraph();
+    g.addNode(1);
+    g.addNode(2);
+    g.addNode(3);
+    g.addNode(4);
+
+    g.addEdge(1, 4);
+    g.addEdge(2, 4);
+//    g.addEdge();
+    assertFalse(g.edgeCausesCycle(3, 4));
+    assertFalse(g.edgeCausesCycle(1, 2));
+    assertTrue(g.edgeCausesCycle(4, 1));
+
+    assertTrue(g.edgeCausesCycle(4, 4));
+  }
+
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void testDeadLockIsNotPersistent() throws InterruptedException {
+    final LockManager lockMan = new LockManager();
+    AsyncDeadlockTesterThread thread1 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 1, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 1 Thread");
+
+    AsyncDeadlockTesterThread thread2 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("A", 2, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 2 Thread");
+
+    AsyncDeadlockTesterThread thread3 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("B", 2, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 2 Second Thread");
+
+    AsyncDeadlockTesterThread thread4 = new AsyncDeadlockTesterThread(new Runnable() {
+      public void run() {
+        lockMan.acquireLock("B", 1, LockManager.LockType.EXCLUSIVE);
+      }
+    }, "Transaction 1 Second Thread");
+
+
+  try{
+    thread1.start();
+    thread1.join(100);
+
+    thread2.start();
+    thread2.join(100);
+
+    thread3.start();
+    thread3.join(100);
+
+  } catch (DeadlockException d) {
+    fail("No deadlock exists but Deadlock Exception was thrown.");
+  }
+
+    try {
+    thread4.start();
+    thread4.join(100);
+    thread4.test();
+    fail("Deadlock Exception not thrown.");
+  } catch (DeadlockException d) {
+
+  }
+
+  lockMan.releaseLock("A", 1);
+  lockMan.releaseLock("B", 2);
+  try {
+    thread4.join(100);
+    thread4.test();
+    fail("Deadlock Exception not thrown.");
+  } catch (DeadlockException d) {
+
+  }
+
+  }
+
+  @Test
+  @Category(StudentTestP3.class)
+  public void test7() {
+
+  }
+
 
 
 }
